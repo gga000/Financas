@@ -407,7 +407,7 @@ function dbClear(){return new Promise(res=>{const t=db.transaction('tx','readwri
 /* ── UTILS ── */
 function ym(y,m){return y*100+m}
 function fmt(v){return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function fmtShort(v){return'R$ '+(Math.abs(v)>=1000?(Math.abs(v)/1000).toFixed(1)+'k':Math.abs(v).toFixed(0))}
+function fmtShort(v){return fmt(v)}
 function toast(msg,c){
   const t=document.getElementById('toast');
   t.textContent=msg;if(c)t.style.borderLeftColor=c;

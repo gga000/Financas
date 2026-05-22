@@ -506,7 +506,18 @@ function ym(y,m){return y*100+m}
 function fmt(v){return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function todayISO(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fmtDate(iso){if(!iso)return'';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`}
-function addMonths(isoDate,n){const d=new Date(isoDate+'T12:00:00');d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10)}
+function addMonths(isoDate,n){
+  // If date is empty/invalid, build a fake date from the next period just for month stepping
+  const base=isoDate?new Date(isoDate+'T12:00:00'):null;
+  if(!base||isNaN(base)){return '';}
+  base.setMonth(base.getMonth()+n);
+  return base.toISOString().slice(0,10);
+}
+function stepMonth(isoDate,y,m){
+  // returns next date for series: if isoDate is valid, uses addMonths; otherwise returns ''
+  if(!isoDate)return '';
+  return addMonths(isoDate,1);
+}
 function toast(msg,c){
   const t=document.getElementById('toast');
   t.textContent=msg;if(c)t.style.borderColor=c;
@@ -867,7 +878,7 @@ async function saveEntry(){
     let m=month,y=year,d=date;
     for(let i=pnum-1;i<ptotal;i++){
       await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,groupId,createdAt:Date.now()});
-      const nd=addMonths(d,1);d=nd;m++;if(m>11){m=0;y++}
+      if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
     }
     toast(`${ptotal-pnum+1} parcela(s) salva(s)!`,'var(--purple)');
   } else if(document.getElementById('f-recur')?.value==='monthly'){
@@ -875,7 +886,7 @@ async function saveEntry(){
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
       await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,groupId,recurring:true,createdAt:Date.now()});
-      const nd=addMonths(d,1);d=nd;m++;if(m>11){m=0;y++}
+      if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
     }
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
   } else {
@@ -909,8 +920,8 @@ async function updateEntry(id){
     const newGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
-      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,obs,groupId:newGroupId,recurring:true,createdAt:Date.now()});
-      const nd=addMonths(d,1);d=nd;m++;if(m>11){m=0;y++}
+      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,groupId:newGroupId,recurring:true,createdAt:Date.now()});
+      if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
     }
     toast(`Série de ${count} meses criada!`,'var(--teal)');
     closeModal();renderAll();
@@ -927,8 +938,8 @@ async function updateEntry(id){
           const toUpdate=[existing,...futureInGroup].sort((a,b)=>ym(a.year,a.month)-ym(b.year,b.month));
           let m=month,y=year,d=date;
           for(const x of toUpdate){
-            await dbPut({...x,name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,obs});
-            const nd=addMonths(d,1);d=nd;m++;if(m>11){m=0;y++}
+            await dbPut({...x,name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs});
+            if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
           }
           toast('Série atualizada!','var(--green)');renderAll();
         }},

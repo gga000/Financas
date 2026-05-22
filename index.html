@@ -22,7 +22,8 @@
   --blue:#5b8eff;--blue-bg:#0d1a3d;--blue-border:#1a2a4a;
   --amber:#ffb547;--amber-bg:#2e1f0d;--amber-border:#4a2a0d;
   --purple:#a78bfa;--purple-bg:#1a0d3d;--purple-border:#2a1a4a;
-  --teal:#2dd4bf;--nav-bg:rgba(13,15,26,.96);
+  --teal:#2dd4bf;--teal-bg:#0d2e2a;--teal-border:#1a4a44;
+  --nav-bg:rgba(13,15,26,.96);
   --radius:14px;--radius-sm:9px;
   --font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;
 }
@@ -35,31 +36,37 @@ body.light{
   --blue:#2962e8;--blue-bg:#eaf0ff;--blue-border:#b0c4f8;
   --amber:#c47800;--amber-bg:#fff8e8;--amber-border:#f0d080;
   --purple:#6d3fdc;--purple-bg:#f0ebff;--purple-border:#c8b0f8;
-  --teal:#0e9e8c;--nav-bg:rgba(245,246,250,.96);
+  --teal:#0e9e8c;--teal-bg:#e8faf8;--teal-border:#b0e0da;
+  --nav-bg:rgba(245,246,250,.96);
 }
 html,body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
 body{min-height:100vh;padding-bottom:76px}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
 /* NAV */
 #nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px)}
 .nav-btn{flex:1;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;color:var(--text3);font-size:10px;font-family:var(--font);cursor:pointer;transition:color .2s}
 .nav-btn.active{color:var(--blue)}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
 .nav-btn.active svg{transform:scale(1.1)}
+
 /* PAGES */
 .page{display:none;padding:20px 16px;animation:fadeIn .2s ease}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
 /* HEADER */
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
 .page-title{font-size:22px;font-weight:600;letter-spacing:-.3px}
 .month-nav{display:flex;align-items:center;gap:6px}
-.month-nav button{background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:var(--radius-sm);width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.month-nav button{background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:var(--radius-sm);width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:background .15s}
 .month-nav button:hover{background:var(--bg4);color:var(--text)}
 .month-label{font-size:13px;color:var(--text2);min-width:88px;text-align:center;font-weight:500}
+
 /* CARDS */
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;transition:background .25s,border-color .25s}
 .card-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:500;margin-bottom:12px}
+
 /* SUMMARY */
 .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;transition:background .25s}
@@ -67,10 +74,12 @@ body{min-height:100vh;padding-bottom:76px}
 .stat-value{font-size:18px;font-weight:600;font-family:var(--mono);letter-spacing:-.5px}
 .stat-value.green{color:var(--green)}.stat-value.red{color:var(--red)}.stat-value.amber{color:var(--amber)}
 .stat-icon{font-size:18px;margin-bottom:6px}
+
 /* PROGRESS */
 .prog-bar{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;margin:8px 0 5px}
 .prog-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.4,0,.2,1)}
 .prog-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text3)}
+
 /* TX LIST */
 .tx-list{display:flex;flex-direction:column;gap:7px}
 .tx-item{display:flex;align-items:flex-start;gap:11px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;transition:background .15s}
@@ -83,16 +92,19 @@ body{min-height:100vh;padding-bottom:76px}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
 .tx-meta{font-size:11px;color:var(--text3);margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.tx-obs{font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.tx-obs{font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5;word-break:break-word}
 .tx-right{text-align:right;flex-shrink:0}
 .tx-val{font-size:14px;font-weight:600;font-family:var(--mono)}
 .tx-val.income{color:var(--green)}.tx-val.expense{color:var(--red)}
 .tx-actions{display:flex;gap:10px;margin-top:4px;justify-content:flex-end}
 .tx-btn{background:none;border:none;font-size:11px;cursor:pointer;padding:1px 0;font-family:var(--font);transition:color .15s}
 .tx-btn.edit{color:var(--blue)}.tx-btn.del{color:var(--text3)}.tx-btn.del:hover{color:var(--red)}
+
 /* BADGE */
 .badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:500}
 .badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-teal{background:var(--teal-bg);color:var(--teal)}
+
 /* FORM */
 .form-group{margin-bottom:13px}
 label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500}
@@ -104,19 +116,23 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237b83b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
 select option{background:var(--bg3)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.val-preview{font-size:12px;margin-top:5px;font-family:var(--mono);min-height:16px}
+.hint{font-size:11px;color:var(--text3);margin-top:4px}
+
 /* BUTTONS */
 .btn{padding:11px 18px;border-radius:var(--radius-sm);border:none;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;font-family:var(--font)}
 .btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{opacity:.88}.btn-primary:active{transform:scale(.97)}
 .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--bg4);color:var(--text)}
 .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.btn-teal{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-border)}
 .btn-row{display:flex;gap:8px}
 .btn-sm{padding:7px 13px;font-size:12px}
+
 /* TABS */
 .tabs{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .tabs::-webkit-scrollbar{display:none}
 .tab{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);font-weight:500}
 .tab.active{background:var(--blue);border-color:var(--blue);color:#fff}
+
 /* MODAL */
 #modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:flex-end;backdrop-filter:blur(4px)}
 #modal-overlay.open{display:flex}
@@ -124,29 +140,63 @@ select option{background:var(--bg3)}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:18px;letter-spacing:-.2px}
+
+/* CUSTOM NUMPAD */
+#numpad-overlay{display:none;position:fixed;inset:0;z-index:300;flex-direction:column;justify-content:flex-end}
+#numpad-overlay.open{display:flex}
+#numpad-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+#numpad-box{position:relative;background:var(--bg2);border-radius:20px 20px 0 0;border:1px solid var(--border);padding:12px 12px 32px;z-index:1}
+#numpad-display{background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px;font-family:var(--mono);font-size:20px;text-align:right;color:var(--text);min-height:50px;word-break:break-all;letter-spacing:.5px}
+#numpad-preview{font-size:12px;color:var(--green);text-align:right;margin-top:-6px;margin-bottom:8px;font-family:var(--mono);min-height:16px}
+.numpad-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.nk{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 6px;font-size:18px;font-weight:500;cursor:pointer;text-align:center;transition:background .1s;font-family:var(--mono);color:var(--text);user-select:none}
+.nk:active{background:var(--bg5)}
+.nk.op{color:var(--blue);font-size:20px}
+.nk.del{color:var(--amber)}
+.nk.ok{background:var(--blue);color:#fff;font-size:15px;font-weight:600}
+.nk.ok:active{opacity:.85}
+.nk.zero{grid-column:span 1}
+
 /* PROJ */
 .proj-header{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:8px;padding:0 4px;letter-spacing:.3px;text-transform:uppercase}
 .proj-row{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px}
 .proj-month-name{font-size:13px;font-weight:500;min-width:80px}
 .proj-vals{display:flex;gap:10px;font-family:var(--mono);font-size:12px}
 .proj-balance{font-weight:600;min-width:80px;text-align:right}
+
+/* BUDGET PAGE */
+.budget-item{display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 13px;transition:background .15s;margin-bottom:7px}
+.budget-item.done{opacity:.55}
+.budget-item.done .budget-name{text-decoration:line-through}
+.budget-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s;font-size:13px}
+.budget-check.checked{background:var(--green);border-color:var(--green);color:#000}
+.budget-info{flex:1;min-width:0}
+.budget-name{font-size:14px;font-weight:500;color:var(--text)}
+.budget-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.budget-right{text-align:right;flex-shrink:0}
+.budget-val{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text2)}
+.budget-actions{display:flex;gap:8px;margin-top:3px;justify-content:flex-end}
+.budget-progress{background:var(--bg4);border-radius:3px;height:4px;overflow:hidden;margin-bottom:10px}
+.budget-progress-fill{height:100%;border-radius:3px;background:var(--green);transition:width .4s}
+
 /* SETTINGS */
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
 .settings-row:last-child{border-bottom:none}
 .settings-label{font-size:14px;font-weight:500}
 .settings-sub{font-size:12px;color:var(--text3);margin-top:2px}
-/* TOGGLE */
 .toggle{position:relative;width:46px;height:26px;flex-shrink:0}
 .toggle input{opacity:0;width:0;height:0;position:absolute}
 .toggle-track{position:absolute;inset:0;background:var(--bg4);border:1px solid var(--border2);border-radius:13px;cursor:pointer;transition:background .2s}
 .toggle input:checked+.toggle-track{background:var(--blue);border-color:var(--blue)}
 .toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none}
 .toggle input:checked~.toggle-thumb{transform:translateX(20px)}
+
 /* INSTALL BANNER */
 #install-banner{display:none;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:13px 14px;margin-bottom:14px;align-items:center;gap:10px}
 #install-banner.show{display:flex}
 .install-text{flex:1;font-size:13px;color:var(--text)}
 .install-text strong{color:var(--blue)}
+
 /* MISC */
 .empty{text-align:center;color:var(--text3);padding:36px 20px;font-size:14px;line-height:1.7}
 .empty-icon{font-size:36px;margin-bottom:10px}
@@ -154,13 +204,61 @@ select option{background:var(--bg3)}
 .section-title{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:500}
 #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-90px);background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:10px 20px;border-radius:var(--radius-sm);font-size:13px;z-index:999;transition:transform .3s cubic-bezier(.4,0,.2,1);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 #toast.show{transform:translateX(-50%) translateY(0)}
-.hint{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* CONFIRM DIALOG */
+#confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:400;align-items:center;justify-content:center;padding:20px}
+#confirm-overlay.open{display:flex}
+#confirm-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:22px 18px;width:100%;max-width:320px}
+#confirm-title{font-size:15px;font-weight:600;margin-bottom:8px}
+#confirm-msg{font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.6}
+#confirm-btns{display:flex;flex-direction:column;gap:8px}
 </style>
 </head>
 <body>
+
 <div id="toast"></div>
+
+<!-- MODAL -->
 <div id="modal-overlay" onclick="handleOverlayClick(event)">
   <div id="modal"><div class="modal-handle"></div><div id="modal-content"></div></div>
+</div>
+
+<!-- CUSTOM NUMPAD -->
+<div id="numpad-overlay">
+  <div id="numpad-backdrop" onclick="closeNumpad(false)"></div>
+  <div id="numpad-box">
+    <div id="numpad-display">0</div>
+    <div id="numpad-preview"></div>
+    <div class="numpad-grid">
+      <div class="nk op" onclick="nkOp('(')">( )</div>
+      <div class="nk op" onclick="nkOp('/')">÷</div>
+      <div class="nk op" onclick="nkOp('*')">×</div>
+      <div class="nk del" onclick="nkDel()">⌫</div>
+      <div class="nk" onclick="nkNum('7')">7</div>
+      <div class="nk" onclick="nkNum('8')">8</div>
+      <div class="nk" onclick="nkNum('9')">9</div>
+      <div class="nk op" onclick="nkOp('-')">−</div>
+      <div class="nk" onclick="nkNum('4')">4</div>
+      <div class="nk" onclick="nkNum('5')">5</div>
+      <div class="nk" onclick="nkNum('6')">6</div>
+      <div class="nk op" onclick="nkOp('+')">+</div>
+      <div class="nk" onclick="nkNum('1')">1</div>
+      <div class="nk" onclick="nkNum('2')">2</div>
+      <div class="nk" onclick="nkNum('3')">3</div>
+      <div class="nk ok" onclick="closeNumpad(true)" style="grid-row:span 2">OK</div>
+      <div class="nk" onclick="nkNum('0')" style="grid-column:span 2">0</div>
+      <div class="nk" onclick="nkNum(',')">.</div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <div id="confirm-title"></div>
+    <div id="confirm-msg"></div>
+    <div id="confirm-btns"></div>
+  </div>
 </div>
 
 <!-- DASHBOARD -->
@@ -227,6 +325,24 @@ select option{background:var(--bg3)}
   </div>
 </div>
 
+<!-- ORÇAMENTO -->
+<div id="page-budget" class="page">
+  <div class="page-header">
+    <span class="page-title">Orçamento</span>
+    <button class="btn btn-primary btn-sm" onclick="showBudgetAddModal()">+ Item</button>
+  </div>
+  <div id="budget-month-nav" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px">
+    <button class="month-nav" onclick="changeBudgetMonth(-1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:var(--radius-sm);width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center">‹</button>
+    <span id="budget-month-label" style="font-size:13px;color:var(--text2);min-width:88px;text-align:center;font-weight:500"></span>
+    <button class="month-nav" onclick="changeBudgetMonth(1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:var(--radius-sm);width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center">›</button>
+  </div>
+  <div class="card" id="budget-summary-card" style="display:none">
+    <div id="budget-progress" class="budget-progress"><div id="budget-progress-fill" class="budget-progress-fill" style="width:0%"></div></div>
+    <div id="budget-summary-text" style="font-size:12px;color:var(--text3);text-align:center"></div>
+  </div>
+  <div id="budget-list"></div>
+</div>
+
 <!-- CONFIGURAÇÕES -->
 <div id="page-cfg" class="page">
   <div class="page-header"><span class="page-title">Configurações</span></div>
@@ -261,8 +377,7 @@ select option{background:var(--bg3)}
     <div style="font-size:13px;color:var(--text3);line-height:1.8">
       Finanças Pessoais PWA — dados locais via IndexedDB.<br>
       Nenhuma informação enviada para servidores.<br><br>
-      <span style="color:var(--text2)">Para apagar dados do IndexedDB:<br>
-      Chrome → ⋮ → Configurações → Privacidade → Limpar dados de navegação → Dados de sites</span>
+      <span style="color:var(--text2)">Chrome → ⋮ → Configurações → Privacidade → Limpar dados → Dados de sites</span>
     </div>
   </div>
 </div>
@@ -281,6 +396,10 @@ select option{background:var(--bg3)}
     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span>Projeção</span>
   </button>
+  <button class="nav-btn" onclick="showPage('budget',this)">
+    <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    <span>Orçamento</span>
+  </button>
   <button class="nav-btn" onclick="showPage('cfg',this)">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     <span>Config</span>
@@ -291,14 +410,13 @@ select option{background:var(--bg3)}
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const ICONS={income:'💵',fixed:'🏠',variable:'🛒',credit:'💳'};
 const CAT_LABELS={income:'Receita',fixed:'Despesa Fixa',variable:'Despesa Variável',credit:'Cartão de Crédito'};
-let db,curMonth=new Date().getMonth(),curYear=new Date().getFullYear(),txFilter='all';
+let db, curMonth=new Date().getMonth(), curYear=new Date().getFullYear(), txFilter='all';
+let budgetMonth=new Date().getMonth(), budgetYear=new Date().getFullYear();
 let deferredInstall=null;
 
-/* ── PWA MANIFEST ── */
+/* ── PWA ── */
 function setupManifest(){
-  const m={name:'Finanças Pessoais',short_name:'Finanças',start_url:location.href,display:'standalone',
-    background_color:'#0d0f1a',theme_color:'#0d0f1a',
-    icons:[{src:'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%235b8eff%22/><text y=%22.9em%22 font-size=%2270%22 x=%2212%22>💰</text></svg>',sizes:'192x192',type:'image/svg+xml'}]};
+  const m={name:'Finanças Pessoais',short_name:'Finanças',start_url:location.href,display:'standalone',background_color:'#0d0f1a',theme_color:'#0d0f1a',icons:[{src:'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%235b8eff%22/><text y=%22.9em%22 font-size=%2270%22 x=%2212%22>💰</text></svg>',sizes:'192x192',type:'image/svg+xml'}]};
   const blob=new Blob([JSON.stringify(m)],{type:'application/json'});
   document.getElementById('pwa-manifest').href=URL.createObjectURL(blob);
 }
@@ -312,7 +430,6 @@ if('serviceWorker' in navigator){
   const base=location.pathname.replace(/\/[^/]*$/,'/');
   navigator.serviceWorker.register(base+'sw.js',{scope:base})
     .then(reg=>{
-      console.log('[SW] scope:',reg.scope);
       reg.addEventListener('updatefound',()=>{
         const sw=reg.installing;
         sw.addEventListener('statechange',()=>{
@@ -320,8 +437,7 @@ if('serviceWorker' in navigator){
             toast('Nova versão disponível — recarregue','var(--amber)');
         });
       });
-    })
-    .catch(e=>console.warn('[SW]',e));
+    }).catch(e=>console.warn('[SW]',e));
 }
 
 /* ── THEME ── */
@@ -337,12 +453,19 @@ function toggleTheme(dark){applyTheme(dark)}
 /* ── DB ── */
 function openDB(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open('financas_pwa_v1',1);
+    const r=indexedDB.open('financas_pwa_v2',2);
     r.onupgradeneeded=e=>{
       const d=e.target.result;
       if(!d.objectStoreNames.contains('tx')){
         const s=d.createObjectStore('tx',{keyPath:'id',autoIncrement:true});
         s.createIndex('ym','ym');
+      }
+      if(!d.objectStoreNames.contains('budget')){
+        d.createObjectStore('budget',{keyPath:'id',autoIncrement:true});
+      }
+      if(!d.objectStoreNames.contains('budgetDone')){
+        // key = budgetItemId + '_' + YYYYMM
+        d.createObjectStore('budgetDone',{keyPath:'key'});
       }
     };
     r.onsuccess=e=>res(e.target.result);
@@ -355,16 +478,27 @@ const dbPut=item=>new Promise((res,rej)=>{const t=db.transaction('tx','readwrite
 const dbDel=id=>new Promise(res=>{const t=db.transaction('tx','readwrite');t.objectStore('tx').delete(id).onsuccess=()=>res()});
 const dbClear=()=>new Promise(res=>{const t=db.transaction('tx','readwrite');t.objectStore('tx').clear().onsuccess=()=>res()});
 
+const budgetAll=()=>new Promise(res=>{const t=db.transaction('budget','readonly');t.objectStore('budget').getAll().onsuccess=e=>res(e.target.result||[])});
+const budgetAdd=item=>new Promise((res,rej)=>{const t=db.transaction('budget','readwrite');const r=t.objectStore('budget').add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const budgetPut=item=>new Promise((res,rej)=>{const t=db.transaction('budget','readwrite');const r=t.objectStore('budget').put(item);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)});
+const budgetDel=id=>new Promise(res=>{const t=db.transaction('budget','readwrite');t.objectStore('budget').delete(id).onsuccess=()=>res()});
+
+function doneKey(budgetId,y,m){return`${budgetId}_${y}${String(m+1).padStart(2,'0')}`}
+const doneGet=key=>new Promise(res=>{try{const t=db.transaction('budgetDone','readonly');const r=t.objectStore('budgetDone').get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null)}catch{res(null)}});
+const donePut=rec=>new Promise(res=>{const t=db.transaction('budgetDone','readwrite');t.objectStore('budgetDone').put(rec).onsuccess=()=>res()});
+const doneDel=key=>new Promise(res=>{const t=db.transaction('budgetDone','readwrite');t.objectStore('budgetDone').delete(key).onsuccess=()=>res()});
+const doneAllForMonth=(y,m)=>new Promise(res=>{
+  const prefix=`_${y}${String(m+1).padStart(2,'0')}`;
+  const t=db.transaction('budgetDone','readonly');
+  t.objectStore('budgetDone').getAll().onsuccess=e=>res((e.target.result||[]).filter(r=>r.key.endsWith(prefix)));
+});
+
 /* ── UTILS ── */
 function ym(y,m){return y*100+m}
 function fmt(v){return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function todayISO(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fmtDate(iso){if(!iso)return'';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`}
-function addMonths(isoDate,n){
-  const d=new Date(isoDate+'T12:00:00');
-  d.setMonth(d.getMonth()+n);
-  return d.toISOString().slice(0,10);
-}
+function addMonths(isoDate,n){const d=new Date(isoDate+'T12:00:00');d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10)}
 function toast(msg,c){
   const t=document.getElementById('toast');
   t.textContent=msg;if(c)t.style.borderColor=c;
@@ -377,27 +511,93 @@ function calcMonth(all,y,m){
   return{income,expense,balance:income-expense,rows};
 }
 
+/* ── CONFIRM DIALOG ── */
+function showConfirm(title,msg,buttons){
+  document.getElementById('confirm-title').textContent=title;
+  document.getElementById('confirm-msg').textContent=msg;
+  const btns=document.getElementById('confirm-btns');
+  btns.innerHTML='';
+  buttons.forEach(b=>{
+    const el=document.createElement('button');
+    el.className='btn '+(b.cls||'btn-ghost');
+    el.textContent=b.label;
+    el.onclick=()=>{document.getElementById('confirm-overlay').classList.remove('open');b.action()};
+    btns.appendChild(el);
+  });
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+
 /* ── CALC EXPRESSION ── */
 function evalExpr(raw){
   const clean=String(raw).replace(/,/g,'.').replace(/[^0-9+\-*/().]/g,'');
-  if(!clean)return NaN;
-  try{
-    const r=Function('"use strict";return('+clean+')')();
-    return isFinite(r)?Math.round(r*100)/100:NaN;
-  }catch{return NaN}
+  if(!clean||clean==='')return NaN;
+  try{const r=Function('"use strict";return('+clean+')')();return isFinite(r)?Math.round(r*100)/100:NaN}catch{return NaN}
+}
+function hasOp(s){return/[+\-*/]/.test(s)}
+
+/* ── CUSTOM NUMPAD ── */
+let _numpadExpr='', _numpadTarget=null, _numpadResolve=null;
+
+function openNumpad(initialVal){
+  return new Promise(resolve=>{
+    _numpadResolve=resolve;
+    _numpadExpr=initialVal!=null?String(initialVal):'';
+    _renderNumpad();
+    document.getElementById('numpad-overlay').classList.add('open');
+  });
+}
+function closeNumpad(confirm){
+  document.getElementById('numpad-overlay').classList.remove('open');
+  if(_numpadResolve){
+    _numpadResolve(confirm?_numpadExpr:null);
+    _numpadResolve=null;
+  }
+}
+function _renderNumpad(){
+  const disp=document.getElementById('numpad-display');
+  const prev=document.getElementById('numpad-preview');
+  disp.textContent=_numpadExpr||'0';
+  if(hasOp(_numpadExpr)){
+    const r=evalExpr(_numpadExpr);
+    prev.textContent=isNaN(r)?'⚠ inválido':'= '+fmt(r);
+    prev.style.color=isNaN(r)?'var(--red)':'var(--green)';
+  }else{prev.textContent=''}
+}
+function nkNum(ch){
+  if(ch===','&&(_numpadExpr.includes(','))){
+    // allow comma per number segment
+    const parts=_numpadExpr.split(/[+\-*/]/);
+    if(parts[parts.length-1].includes(','))return;
+  }
+  _numpadExpr+=ch;_renderNumpad();
+}
+function nkOp(op){
+  if(op==='('){
+    // toggle paren
+    const open=(_numpadExpr.match(/\(/g)||[]).length;
+    const close=(_numpadExpr.match(/\)/g)||[]).length;
+    _numpadExpr+=open>close?')':'(';
+  }else{
+    if(_numpadExpr===''&&op==='-')_numpadExpr='-';
+    else _numpadExpr+=op;
+  }
+  _renderNumpad();
+}
+function nkDel(){
+  _numpadExpr=_numpadExpr.slice(0,-1);_renderNumpad();
 }
 
 /* ── EXPORT / IMPORT ── */
 async function exportData(){
   const all=await dbAll();
-  if(!all.length){toast('Nenhum dado para exportar','var(--amber)');return}
-  const json=JSON.stringify({version:1,exportedAt:new Date().toISOString(),data:all},null,2);
+  const buds=await budgetAll();
+  if(!all.length&&!buds.length){toast('Nenhum dado para exportar','var(--amber)');return}
+  const json=JSON.stringify({version:2,exportedAt:new Date().toISOString(),data:all,budget:buds},null,2);
   const blob=new Blob([json],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   const d=new Date();
-  a.href=url;
-  a.download=`financas_backup_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  a.href=url;a.download=`financas_backup_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
   a.click();URL.revokeObjectURL(url);
   toast(`${all.length} lançamentos exportados!`,'var(--green)');
 }
@@ -408,8 +608,8 @@ function importData(e){
     try{
       const obj=JSON.parse(ev.target.result);
       const items=obj.data||obj;
-      if(!Array.isArray(items)||!items.length){toast('Arquivo inválido','var(--red)');return}
-      if(!confirm(`Importar ${items.length} lançamentos? Os dados atuais serão mantidos.`))return;
+      if(!Array.isArray(items)){toast('Arquivo inválido','var(--red)');return}
+      if(!confirm(`Importar ${items.length} lançamentos?`))return;
       let count=0;
       for(const item of items){
         const{id,...rest}=item;
@@ -436,13 +636,16 @@ function showPage(id,btn){
   if(id==='dash')renderDash();
   else if(id==='tx')renderTx();
   else if(id==='proj')renderProj();
+  else if(id==='budget')renderBudget();
   else if(id==='cfg')renderCfg();
 }
 function changeMonth(d){
-  curMonth+=d;
-  if(curMonth<0){curMonth=11;curYear--}
-  if(curMonth>11){curMonth=0;curYear++}
+  curMonth+=d;if(curMonth<0){curMonth=11;curYear--}if(curMonth>11){curMonth=0;curYear++}
   renderAll();
+}
+function changeBudgetMonth(d){
+  budgetMonth+=d;if(budgetMonth<0){budgetMonth=11;budgetYear--}if(budgetMonth>11){budgetMonth=0;budgetYear++}
+  renderBudget();
 }
 function updateMonthLabels(){
   const txt=MONTHS[curMonth].substring(0,3)+' '+curYear;
@@ -456,7 +659,7 @@ function handleOverlayClick(e){if(e.target===document.getElementById('modal-over
 function closeModal(){document.getElementById('modal-overlay').classList.remove('open')}
 function openModal(html){document.getElementById('modal-content').innerHTML=html;document.getElementById('modal-overlay').classList.add('open')}
 
-/* ── FORM ── */
+/* ── TX FORM ── */
 function entryFormHtml(t=null){
   const isEdit=!!t;
   const defDate=t?.date||todayISO();
@@ -464,7 +667,8 @@ function entryFormHtml(t=null){
   const defYear=t!=null?t.year:curYear;
   const defType=t?.type||'variable';
   const defObs=t?.obs||'';
-  const defVal=isEdit?t.value:'';
+  // For edit: show rawExpr if available, else the numeric value
+  const defVal=isEdit?(t.rawExpr||t.value):'';
   return`
     <div class="modal-title">${isEdit?'✏️ Editar lançamento':'Novo lançamento'}</div>
     <div class="form-group">
@@ -472,9 +676,9 @@ function entryFormHtml(t=null){
       <input id="f-name" placeholder="Ex: Aluguel, Salário, Netflix..." value="${isEdit?t.name.replace(/"/g,'&quot;'):''}">
     </div>
     <div class="form-group">
-      <label>Valor — aceita cálculo (ex: 100 + 250,76)</label>
-      <input id="f-val" type="text" inputmode="decimal" placeholder="0,00 ou 100 + 50" value="${defVal}" oninput="onValInput()">
-      <div id="val-preview" class="val-preview"></div>
+      <label>Valor</label>
+      <input id="f-val" type="text" inputmode="none" placeholder="Toque para abrir calculadora" value="${defVal}" readonly style="cursor:pointer" onclick="openValNumpad()">
+      <div id="val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
     </div>
     <div class="form-grid">
       <div class="form-group">
@@ -487,9 +691,8 @@ function entryFormHtml(t=null){
         </select>
       </div>
       <div class="form-group">
-        <label>Data</label>
+        <label>Vencimento</label>
         <input id="f-date" type="date" value="${defDate}">
-        <div class="hint">Apenas informativa</div>
       </div>
     </div>
     <div class="form-group">
@@ -501,7 +704,7 @@ function entryFormHtml(t=null){
     </div>
     <div class="form-group">
       <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <textarea id="f-obs" placeholder="Detalhes, itens agrupados, notas...">${defObs}</textarea>
+      <textarea id="f-obs" placeholder="Detalhes, itens agrupados...">${defObs}</textarea>
     </div>
     <div id="area-recur" style="${defType==='credit'?'display:none':''}">
       <div class="form-group">
@@ -513,20 +716,14 @@ function entryFormHtml(t=null){
       </div>
       <div id="area-recur-count" style="display:none" class="form-group">
         <label>Quantas vezes repetir</label>
-        <input id="f-recur-count" type="number" value="12" min="1" max="360" inputmode="numeric" placeholder="Ex: 12">
+        <input id="f-recur-count" type="number" value="12" min="1" max="360" inputmode="numeric">
         <div class="hint">Inclui o período atual</div>
       </div>
     </div>
     <div id="area-parcela" style="${defType==='credit'?'':'display:none'}">
       <div class="form-grid">
-        <div class="form-group">
-          <label>Parcela atual</label>
-          <input id="f-pnum" type="number" value="1" min="1" inputmode="numeric">
-        </div>
-        <div class="form-group">
-          <label>Total de parcelas</label>
-          <input id="f-ptotal" type="number" value="1" min="1" inputmode="numeric">
-        </div>
+        <div class="form-group"><label>Parcela atual</label><input id="f-pnum" type="number" value="1" min="1" inputmode="numeric"></div>
+        <div class="form-group"><label>Total de parcelas</label><input id="f-ptotal" type="number" value="1" min="1" inputmode="numeric"></div>
       </div>
     </div>
     <div class="btn-row" style="margin-top:4px">
@@ -535,18 +732,24 @@ function entryFormHtml(t=null){
     </div>`;
 }
 
-function onValInput(){
-  const raw=document.getElementById('f-val')?.value||'';
-  const prev=document.getElementById('val-preview');
-  if(!prev)return;
-  if(/[+\-*/]/.test(raw)){
-    const r=evalExpr(raw);
-    prev.textContent=isNaN(r)?'⚠ Expressão inválida':'= '+fmt(r);
-    prev.style.color=isNaN(r)?'var(--red)':'var(--green)';
-  }else{
-    prev.textContent='';
+async function openValNumpad(){
+  const cur=document.getElementById('f-val')?.value||'';
+  const result=await openNumpad(cur);
+  if(result!==null){
+    const inp=document.getElementById('f-val');
+    if(!inp)return;
+    inp.value=result;
+    const prev=document.getElementById('val-preview');
+    if(prev){
+      if(hasOp(result)){
+        const r=evalExpr(result);
+        prev.textContent=isNaN(r)?'⚠ inválido':'= '+fmt(r);
+        prev.style.color=isNaN(r)?'var(--red)':'var(--green)';
+      }else{prev.textContent=''}
+    }
   }
 }
+
 function onTypeChange(){
   const t=document.getElementById('f-type').value;
   document.getElementById('area-parcela').style.display=t==='credit'?'block':'none';
@@ -557,31 +760,35 @@ function onRecurChange(){
   const el=document.getElementById('area-recur-count');
   if(el)el.style.display=v==='monthly'?'block':'none';
 }
+
 function showAddModal(){openModal(entryFormHtml())}
 function showEditModal(id){dbAll().then(all=>{const t=all.find(x=>x.id===id);if(t)openModal(entryFormHtml(t))})}
 
 function getFormValues(){
   const name=document.getElementById('f-name').value.trim();
-  const rawVal=document.getElementById('f-val').value;
-  const val=/[+\-*/]/.test(rawVal)?evalExpr(rawVal):parseFloat(rawVal.replace(',','.'));
+  const rawExpr=document.getElementById('f-val').value.trim();
+  const val=hasOp(rawExpr)?evalExpr(rawExpr):parseFloat(rawExpr.replace(',','.'));
   const type=document.getElementById('f-type').value;
   const date=document.getElementById('f-date').value||todayISO();
   const month=parseInt(document.getElementById('f-month').value);
   const year=parseInt(document.getElementById('f-year').value);
   const obs=document.getElementById('f-obs')?.value.trim()||'';
-  return{name,val,type,date,month,year,obs};
+  // only save rawExpr if it contains operators
+  const exprToSave=hasOp(rawExpr)?rawExpr:null;
+  return{name,val,rawExpr:exprToSave,type,date,month,year,obs};
 }
 
 async function saveEntry(){
-  const{name,val,type,date,month,year,obs}=getFormValues();
+  const{name,val,rawExpr,type,date,month,year,obs}=getFormValues();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
+  const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
   if(type==='credit'){
     const pnum=parseInt(document.getElementById('f-pnum').value)||1;
     const ptotal=parseInt(document.getElementById('f-ptotal').value)||1;
     if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return}
     let m=month,y=year,d=date;
     for(let i=pnum-1;i<ptotal;i++){
-      await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,type,month:m,year:y,ym:ym(y,m),date:d,obs,createdAt:Date.now()});
+      await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,obs,groupId,createdAt:Date.now()});
       const nd=addMonths(d,1);d=nd;m++;if(m>11){m=0;y++}
     }
     toast(`${ptotal-pnum+1} parcela(s) salva(s)!`,'var(--purple)');
@@ -589,29 +796,93 @@ async function saveEntry(){
     const count=Math.max(1,parseInt(document.getElementById('f-recur-count')?.value)||12);
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
-      await dbAdd({name,value:val,type,month:m,year:y,ym:ym(y,m),date:d,obs,recurring:true,createdAt:Date.now()});
+      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,obs,groupId,recurring:true,createdAt:Date.now()});
       const nd=addMonths(d,1);d=nd;m++;if(m>11){m=0;y++}
     }
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
   } else {
-    await dbAdd({name,value:val,type,month,year,ym:ym(year,month),date,obs,createdAt:Date.now()});
+    await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,obs,createdAt:Date.now()});
     toast('Lançamento salvo!');
   }
   closeModal();renderAll();
 }
 
 async function updateEntry(id){
-  const{name,val,type,date,month,year,obs}=getFormValues();
+  const{name,val,rawExpr,type,date,month,year,obs}=getFormValues();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
   const all=await dbAll();
   const existing=all.find(x=>x.id===id);
   if(!existing)return;
-  await dbPut({...existing,name,value:val,type,date,month,year,ym:ym(year,month),obs});
+
+  const recurVal=document.getElementById('f-recur')?.value;
+  const isNewRecur=recurVal==='monthly';
+  const hasGroup=!!existing.groupId;
+
+  if(isNewRecur){
+    // user wants to replicate from this entry forward
+    const count=Math.max(1,parseInt(document.getElementById('f-recur-count')?.value)||12);
+    // delete this and all future entries in same group if any
+    if(hasGroup){
+      const sameGroup=all.filter(x=>x.groupId===existing.groupId&&ym(x.year,x.month)>=ym(existing.year,existing.month));
+      for(const x of sameGroup)await dbDel(x.id);
+    } else {
+      await dbDel(id);
+    }
+    const newGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    let m=month,y=year,d=date;
+    for(let i=0;i<count;i++){
+      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,obs,groupId:newGroupId,recurring:true,createdAt:Date.now()});
+      const nd=addMonths(d,1);d=nd;m++;if(m>11){m=0;y++}
+    }
+    toast(`Série de ${count} meses criada!`,'var(--teal)');
+    closeModal();renderAll();
+    return;
+  }
+
+  if(hasGroup){
+    const futureInGroup=all.filter(x=>x.groupId===existing.groupId&&ym(x.year,x.month)>ym(existing.year,existing.month));
+    if(futureInGroup.length>0){
+      closeModal();
+      showConfirm('Editar lançamento','Este lançamento faz parte de uma série. O que deseja atualizar?',[
+        {label:'Apenas este período',cls:'btn-ghost',action:async()=>{await dbPut({...existing,name,value:val,rawExpr,type,date,month,year,ym:ym(year,month),obs});toast('Lançamento atualizado!','var(--green)');renderAll()}},
+        {label:'Este e todos os seguintes',cls:'btn-primary',action:async()=>{
+          const toUpdate=[existing,...futureInGroup].sort((a,b)=>ym(a.year,a.month)-ym(b.year,b.month));
+          let m=month,y=year,d=date;
+          for(const x of toUpdate){
+            await dbPut({...x,name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,obs});
+            const nd=addMonths(d,1);d=nd;m++;if(m>11){m=0;y++}
+          }
+          toast('Série atualizada!','var(--green)');renderAll();
+        }},
+        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+      ]);
+      return;
+    }
+  }
+  await dbPut({...existing,name,value:val,rawExpr,type,date,month,year,ym:ym(year,month),obs});
   toast('Lançamento atualizado!','var(--green)');
   closeModal();renderAll();
 }
 
 async function deleteTx(id){
+  const all=await dbAll();
+  const item=all.find(x=>x.id===id);
+  if(!item){await dbDel(id);renderAll();return}
+  if(item.groupId){
+    const future=all.filter(x=>x.groupId===item.groupId&&ym(x.year,x.month)>ym(item.year,item.month));
+    if(future.length>0){
+      showConfirm('Remover lançamento','Este lançamento faz parte de uma série.',[
+        {label:'Remover só este',cls:'btn-ghost',action:async()=>{await dbDel(id);toast('Removido','var(--red)');renderAll()}},
+        {label:`Remover este + ${future.length} seguinte(s)`,cls:'btn-danger',action:async()=>{
+          await dbDel(id);
+          for(const x of future)await dbDel(x.id);
+          toast(`${future.length+1} lançamentos removidos`,'var(--red)');renderAll();
+        }},
+        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+      ]);
+      return;
+    }
+  }
   if(!confirm('Remover este lançamento?'))return;
   await dbDel(id);toast('Removido','var(--red)');renderAll();
 }
@@ -619,19 +890,20 @@ async function deleteTx(id){
 /* ── TX CARD ── */
 function txCard(t){
   const income=t.type==='income';
+  const displayVal=t.rawExpr?`${fmt(t.value)} <span style="font-size:10px;color:var(--text3);font-family:var(--font)">(${t.rawExpr})</span>`:fmt(t.value);
   return`<div class="tx-item">
     <div class="tx-icon ${t.type}">${ICONS[t.type]||'💰'}</div>
     <div class="tx-info">
       <div class="tx-name">${t.name}</div>
       <div class="tx-meta">
         <span>${CAT_LABELS[t.type]||''}</span>
-        ${t.recurring?'<span class="badge badge-blue">fixo</span>':''}
-        ${t.date?`<span>📅 ${fmtDate(t.date)}</span>`:''}
+        ${t.recurring||t.groupId?'<span class="badge badge-blue">série</span>':''}
+        ${t.date?`<span>📅 Venc. ${fmtDate(t.date)}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
     </div>
     <div class="tx-right">
-      <div class="tx-val ${income?'income':'expense'}">${income?'+':'-'}${fmt(t.value)}</div>
+      <div class="tx-val ${income?'income':'expense'}">${income?'+':'-'}${displayVal}</div>
       <div class="tx-actions">
         <button class="tx-btn edit" onclick="showEditModal(${t.id})">✏️</button>
         <button class="tx-btn del" onclick="deleteTx(${t.id})">✕</button>
@@ -712,12 +984,188 @@ async function renderProj(){
         <div class="tx-icon credit">${ICONS.credit}</div>
         <div class="tx-info">
           <div class="tx-name">${t.name}</div>
-          <div class="tx-meta">${MONTHS[t.month]} ${t.year}${t.date?` · 📅 ${fmtDate(t.date)}`:''}</div>
+          <div class="tx-meta">${MONTHS[t.month]} ${t.year}${t.date?` · 📅 Venc. ${fmtDate(t.date)}`:''}</div>
           ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
         </div>
         <div class="tx-right"><div class="tx-val expense">-${fmt(t.value)}</div></div>
       </div>`).join('')
     :`<div class="empty"><div class="empty-icon">💳</div>Nenhuma parcela futura cadastrada.</div>`;
+}
+
+/* ── BUDGET ── */
+function showBudgetAddModal(item=null){
+  const isEdit=!!item;
+  openModal(`
+    <div class="modal-title">${isEdit?'✏️ Editar item':'Novo item do orçamento'}</div>
+    <div class="form-group">
+      <label>Descrição</label>
+      <input id="b-name" placeholder="Ex: Aluguel, Cartão, Streaming..." value="${isEdit?item.name.replace(/"/g,'&quot;'):''}">
+    </div>
+    <div class="form-group">
+      <label>Valor esperado</label>
+      <input id="b-val" type="text" inputmode="none" placeholder="Toque para abrir calculadora" value="${isEdit?item.value:''}" readonly style="cursor:pointer" onclick="openBudgetValNumpad()">
+      <div id="b-val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="b-type">
+          <option value="income"${item?.type==='income'?' selected':''}>💵 Receita</option>
+          <option value="fixed"${(!item||item?.type==='fixed')?' selected':''}>🏠 Despesa Fixa</option>
+          <option value="credit"${item?.type==='credit'?' selected':''}>💳 Cartão</option>
+          <option value="variable"${item?.type==='variable'?' selected':''}>🛒 Variável</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Vencimento (dia)</label>
+        <input id="b-day" type="number" min="1" max="31" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <textarea id="b-obs" placeholder="Detalhes...">${isEdit?item.obs||'':''}</textarea>
+    </div>
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn btn-primary" style="flex:1" onclick="${isEdit?`saveBudgetEdit(${item.id})`:'saveBudgetItem()'}">${isEdit?'Salvar':'Adicionar'}</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+}
+
+async function openBudgetValNumpad(){
+  const cur=document.getElementById('b-val')?.value||'';
+  const result=await openNumpad(cur);
+  if(result!==null){
+    const inp=document.getElementById('b-val');
+    if(inp)inp.value=result;
+    const prev=document.getElementById('b-val-preview');
+    if(prev){
+      if(hasOp(result)){const r=evalExpr(result);prev.textContent=isNaN(r)?'⚠ inválido':'= '+fmt(r);prev.style.color=isNaN(r)?'var(--red)':'var(--green)';}
+      else prev.textContent='';
+    }
+  }
+}
+
+async function saveBudgetItem(){
+  const name=document.getElementById('b-name').value.trim();
+  const rawVal=document.getElementById('b-val').value.trim();
+  const val=hasOp(rawVal)?evalExpr(rawVal):parseFloat(rawVal.replace(',','.'));
+  const type=document.getElementById('b-type').value;
+  const dueDay=parseInt(document.getElementById('b-day').value)||null;
+  const obs=document.getElementById('b-obs').value.trim();
+  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
+  await budgetAdd({name,value:val,type,dueDay,obs,createdAt:Date.now()});
+  toast('Item adicionado!','var(--teal)');closeModal();renderBudget();
+}
+
+async function saveBudgetEdit(id){
+  const name=document.getElementById('b-name').value.trim();
+  const rawVal=document.getElementById('b-val').value.trim();
+  const val=hasOp(rawVal)?evalExpr(rawVal):parseFloat(rawVal.replace(',','.'));
+  const type=document.getElementById('b-type').value;
+  const dueDay=parseInt(document.getElementById('b-day').value)||null;
+  const obs=document.getElementById('b-obs').value.trim();
+  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
+  const all=await budgetAll();
+  const existing=all.find(x=>x.id===id);
+  if(!existing)return;
+  await budgetPut({...existing,name,value:val,type,dueDay,obs});
+  toast('Item atualizado!','var(--teal)');closeModal();renderBudget();
+}
+
+async function toggleBudgetDone(budgetId){
+  const key=doneKey(budgetId,budgetYear,budgetMonth);
+  const existing=await doneGet(key);
+  if(existing){
+    // undo: remove the tx we created and remove done mark
+    if(existing.txId){
+      await dbDel(existing.txId);
+    }
+    await doneDel(key);
+    toast('Marcação desfeita','var(--amber)');
+  } else {
+    // mark as done: create a real tx entry
+    const buds=await budgetAll();
+    const item=buds.find(x=>x.id===budgetId);
+    if(!item)return;
+    // build a date for this month using dueDay if available
+    const day=item.dueDay||1;
+    const dateStr=`${budgetYear}-${String(budgetMonth+1).padStart(2,'0')}-${String(Math.min(day,28)).padStart(2,'0')}`;
+    const txId=await dbAdd({
+      name:item.name,value:item.value,type:item.type,
+      month:budgetMonth,year:budgetYear,ym:ym(budgetYear,budgetMonth),
+      date:dateStr,obs:item.obs||'',fromBudget:true,createdAt:Date.now()
+    });
+    await donePut({key,budgetId,txId,doneAt:Date.now()});
+    toast('Lançamento registrado! ✅','var(--green)');
+  }
+  renderBudget();
+  // refresh tx page too if open
+  const p=document.querySelector('.page.active');
+  if(p&&p.id==='page-tx')renderTx();
+  if(p&&p.id==='page-dash')renderDash();
+}
+
+async function deleteBudgetItem(id){
+  if(!confirm('Remover este item do orçamento?'))return;
+  await budgetDel(id);
+  // remove all done marks for this item
+  const t=db.transaction('budgetDone','readwrite');
+  const store=t.objectStore('budgetDone');
+  store.getAll().onsuccess=e=>{
+    (e.target.result||[]).filter(r=>r.budgetId===id).forEach(r=>store.delete(r.key));
+  };
+  toast('Item removido','var(--red)');renderBudget();
+}
+
+async function renderBudget(){
+  const labelEl=document.getElementById('budget-month-label');
+  if(labelEl)labelEl.textContent=MONTHS[budgetMonth].substring(0,3)+' '+budgetYear;
+  const items=await budgetAll();
+  const doneList=await doneAllForMonth(budgetYear,budgetMonth);
+  const doneIds=new Set(doneList.map(d=>d.budgetId));
+  const listEl=document.getElementById('budget-list');
+  if(!items.length){
+    document.getElementById('budget-summary-card').style.display='none';
+    listEl.innerHTML=`<div class="empty"><div class="empty-icon">📋</div>Nenhum item no orçamento.<br>Toque em <strong>+ Item</strong> para começar.</div>`;
+    return;
+  }
+  const total=items.reduce((s,i)=>s+i.value,0);
+  const doneTotal=items.filter(i=>doneIds.has(i.id)).reduce((s,i)=>s+i.value,0);
+  const pct=total>0?Math.round(doneTotal/total*100):0;
+  document.getElementById('budget-summary-card').style.display='block';
+  document.getElementById('budget-progress-fill').style.width=pct+'%';
+  document.getElementById('budget-progress-fill').style.background=pct<50?'var(--amber)':pct<100?'var(--blue)':'var(--green)';
+  document.getElementById('budget-summary-text').textContent=`${doneIds.size} de ${items.length} realizados · ${fmt(doneTotal)} de ${fmt(total)} (${pct}%)`;
+  // sort: not done first, then by dueDay
+  const sorted=[...items].sort((a,b)=>{
+    const ad=doneIds.has(a.id)?1:0,bd=doneIds.has(b.id)?1:0;
+    if(ad!==bd)return ad-bd;
+    return(a.dueDay||99)-(b.dueDay||99);
+  });
+  listEl.innerHTML=sorted.map(item=>{
+    const done=doneIds.has(item.id);
+    const income=item.type==='income';
+    return`<div class="budget-item${done?' done':''}">
+      <div class="budget-check${done?' checked':''}" onclick="toggleBudgetDone(${item.id})">${done?'✓':''}</div>
+      <div class="budget-info">
+        <div class="budget-name">${item.name}</div>
+        <div class="budget-meta">
+          ${CAT_LABELS[item.type]||''}
+          ${item.dueDay?` · Venc. dia ${item.dueDay}`:''}
+          ${done?` · <span style="color:var(--green)">✅ Realizado</span>`:''}
+        </div>
+        ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
+      </div>
+      <div class="budget-right">
+        <div class="budget-val" style="${income?'color:var(--green)':'color:var(--text2)'}">${income?'+':'-'}${fmt(item.value)}</div>
+        <div class="budget-actions">
+          <button class="tx-btn edit" onclick="showBudgetAddModal(${JSON.stringify(item).replace(/"/g,'&quot;')})">✏️</button>
+          <button class="tx-btn del" onclick="deleteBudgetItem(${item.id})">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 /* ── CONFIG ── */
@@ -734,6 +1182,7 @@ async function renderAll(){
   if(p.id==='page-dash')renderDash();
   else if(p.id==='page-tx')renderTx();
   else if(p.id==='page-proj')renderProj();
+  else if(p.id==='page-budget')renderBudget();
 }
 
 /* ── INIT ── */

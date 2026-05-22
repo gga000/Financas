@@ -825,7 +825,7 @@ function getFormValues(){
 }
 
 async function saveEntry(){
-  const{name,val,rawExpr,type,date,month,year,obs}=getFormValues();
+  const{name,val,rawExpr,type,date,paidDate,month,year,obs}=getFormValues();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
   const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
   if(type==='credit'){
@@ -854,7 +854,7 @@ async function saveEntry(){
 }
 
 async function updateEntry(id){
-  const{name,val,rawExpr,type,date,month,year,obs}=getFormValues();
+  const{name,val,rawExpr,type,date,paidDate,month,year,obs}=getFormValues();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
   const all=await dbAll();
   const existing=all.find(x=>x.id===id);

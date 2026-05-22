@@ -1285,9 +1285,17 @@ async function toggleBudgetDone(budgetId){
     const day=item.dueDay||1;
     const dateStr=`${budgetYear}-${String(budgetMonth+1).padStart(2,'0')}-${String(Math.min(day,28)).padStart(2,'0')}`;
     const txId=await dbAdd({
-      name:item.name,value:item.value,type:item.type,
-      month:budgetMonth,year:budgetYear,ym:ym(budgetYear,budgetMonth),
-      date:dateStr,obs:item.obs||'',fromBudget:true,createdAt:Date.now()
+      name:item.name,
+      value:item.value,
+      subitems:item.subitems||[],
+      type:item.type,
+      month:budgetMonth,
+      year:budgetYear,
+      ym:ym(budgetYear,budgetMonth),
+      date:dateStr,
+      obs:item.obs||'',
+      fromBudget:true,
+      createdAt:Date.now()
     });
     await donePut({key,budgetId,txId,doneAt:Date.now()});
     toast('Lançamento registrado! ✅','var(--green)');
@@ -1348,7 +1356,12 @@ async function renderBudget(){
           ${item.dueDay?` · Venc. dia ${item.dueDay}`:''}
           ${done?` · <span style="color:var(--green)">✅ Realizado</span>`:''}
         </div>
-        ${item.subitems?.length?`<div class="tx-obs" style="margin-top:5px">${item.subitems.map(s=>`• ${s.name}: ${fmt(s.value)}`).join('<br>')}</div>`:''}
+        ${item.subitems?.length?`
+          <div class="tx-subtoggle" onclick="toggleSubitems('budget-${item.id}')">▼ ${item.subitems.length} subitens</div>
+          <div class="tx-subitems" id="subs-budget-${item.id}">
+            ${item.subitems.map(s=>`<div class="tx-subitem"><span>${s.name}</span><span>${fmt(s.value)}</span></div>`).join('')}
+          </div>
+        `:''}
         ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
       </div>
       <div class="budget-right">

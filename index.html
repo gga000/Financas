@@ -687,7 +687,7 @@ function entryFormHtml(t=null){
       <label>Valor</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="f-val" type="text" inputmode="decimal" placeholder="0,00" value="${defVal}" style="flex:1" oninput="onValInput()" data-raw-expr="${isEdit&&t?.rawExpr?t.rawExpr:''}">
-        <button type="button" onclick="openValNumpad()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)" title="Calculadora">🖩</button>
+        <button type="button" onclick="openValNumpad()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)" title="Calculadora">📟</button>
       </div>
       <div id="val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
     </div>
@@ -780,29 +780,15 @@ function toggleDateClear(btnId,val){
   if(btn)btn.style.display=val?'inline':'none';
 }
 async function openValNumpad(){
-  // Open numpad with current rawExpr (if any) or current displayed value
   const valInp=document.getElementById('f-val');
-  const storedExpr=valInp?.dataset.rawExpr||'';
-  const cur=storedExpr||valInp?.value||'';
+  const cur=valInp?.value||'';
   const result=await openNumpad(cur);
   if(result!==null&&valInp){
-    if(hasOp(result)){
-      // Has expression: store it in dataset, show expression in field
-      valInp.dataset.rawExpr=result;
-      valInp.value=result;
-      const r=evalExpr(result);
-      const prev=document.getElementById('val-preview');
-      if(prev){
-        prev.textContent=isNaN(r)?'⚠ inválido':'= '+fmt(r);
-        prev.style.color=isNaN(r)?'var(--red)':'var(--green)';
-      }
-    }else{
-      // Plain number: clear stored expr, show value
-      valInp.dataset.rawExpr='';
-      valInp.value=result;
-      const prev=document.getElementById('val-preview');
-      if(prev)prev.textContent='';
-    }
+    // Always resolve to final numeric value
+    const r=hasOp(result)?evalExpr(result):parseFloat(result.replace(',','.'));
+    valInp.value=isNaN(r)?result:String(r).replace('.',',');
+    const prev=document.getElementById('val-preview');
+    if(prev)prev.textContent='';
   }
 }
 
@@ -822,27 +808,19 @@ function showEditModal(id){dbAll().then(all=>{const t=all.find(x=>x.id===id);if(
 
 function getFormValues(){
   const name=document.getElementById('f-name').value.trim();
-  const valInp=document.getElementById('f-val');
-  const rawInput=(valInp?.value||'').trim();
-  // rawExpr stored by numpad in dataset; direct typed input may also have operators
-  const storedExpr=valInp?.dataset.rawExpr||'';
-  const exprToUse=storedExpr||(hasOp(rawInput)?rawInput:'');
-  // compute numeric value
-  let val;
-  if(exprToUse){val=evalExpr(exprToUse);}
-  else{val=parseFloat(rawInput.replace(/[.]/g,'').replace(',','.'));}
-  if(isNaN(val)||!isFinite(val)){
-    // fallback: try parsing directly
-    val=parseFloat(rawInput.replace(',','.'));
-  }
+  const raw=(document.getElementById('f-val')?.value||'').trim();
+  // Try expression first, then plain number (handle both comma and dot as decimal)
+  let val=NaN;
+  if(hasOp(raw)){val=evalExpr(raw);}
+  if(isNaN(val)){val=parseFloat(raw.replace(',','.'));}
+  if(isNaN(val)){val=parseFloat(raw.replace('.','').replace(',','.'));}
+  const rawExpr=(hasOp(raw)&&!isNaN(val))?raw:null;
   const type=document.getElementById('f-type').value;
   const date=document.getElementById('f-date')?.value||'';
   const paidDate=document.getElementById('f-paid')?.value||'';
   const month=parseInt(document.getElementById('f-month').value);
   const year=parseInt(document.getElementById('f-year').value);
   const obs=document.getElementById('f-obs')?.value.trim()||'';
-  // only save expr if it has operators
-  const rawExpr=(storedExpr&&hasOp(storedExpr))?storedExpr:(hasOp(rawInput)?rawInput:null);
   return{name,val,rawExpr,type,date,paidDate,month,year,obs};
 }
 

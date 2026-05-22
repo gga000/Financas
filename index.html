@@ -179,6 +179,14 @@ select option{background:var(--bg3)}
 .budget-progress{background:var(--bg4);border-radius:3px;height:4px;overflow:hidden;margin-bottom:10px}
 .budget-progress-fill{height:100%;border-radius:3px;background:var(--green);transition:width .4s}
 
+
+.tx-subtoggle{font-size:11px;color:var(--blue);margin-top:6px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.tx-subitems{margin-top:8px;border-top:1px dashed var(--border);padding-top:8px;display:none}
+.tx-subitems.open{display:block}
+.tx-subitem{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:3px 0;font-family:var(--mono)}
+.subitem-row{display:grid;grid-template-columns:1fr 90px 32px;gap:8px;margin-bottom:8px;align-items:center}
+.subitem-remove{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;height:38px;cursor:pointer}
+
 /* SETTINGS */
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
 .settings-row:last-child{border-bottom:none}
@@ -737,6 +745,16 @@ function entryFormHtml(t=null){
         <input id="f-year" type="number" value="${defYear}" style="width:80px;flex-shrink:0" inputmode="numeric">
       </div>
     </div>
+
+    <div class="form-group">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <label style="margin:0">Subitens</label>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addSubitem()">+ Subitem</button>
+      </div>
+      <div id="subitems-area"></div>
+      <div class="hint">O valor total será calculado automaticamente pelos subitens</div>
+    </div>
+
     <div class="form-group">
       <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
       <textarea id="f-obs" placeholder="Detalhes, itens agrupados...">${defObs}</textarea>
@@ -840,8 +858,49 @@ function showEditModal(id){dbAll().then(all=>{
       const prev=document.getElementById('val-preview');
       if(prev&&!isNaN(r)){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
     }
+    if(t.subitems?.length){
+      t.subitems.forEach(s=>addSubitem(s.name,s.value));
+      updateSubitemsTotal();
+    }
   },50);
 })}
+
+
+function addSubitem(name='',value=''){
+  const area=document.getElementById('subitems-area');
+  if(!area)return;
+  const row=document.createElement('div');
+  row.className='subitem-row';
+  row.innerHTML=`
+    <input class="sub-name" placeholder="Nome do subitem" value="${name}">
+    <input class="sub-value" type="number" step="0.01" placeholder="0,00" value="${value}" oninput="updateSubitemsTotal()">
+    <button type="button" class="subitem-remove" onclick="this.parentElement.remove();updateSubitemsTotal()">✕</button>
+  `;
+  area.appendChild(row);
+  updateSubitemsTotal();
+}
+
+function getSubitems(){
+  return [...document.querySelectorAll('.subitem-row')].map(r=>{
+    const name=r.querySelector('.sub-name').value.trim();
+    const value=parseFloat(r.querySelector('.sub-value').value)||0;
+    return name&&value>0?{name,value}:null;
+  }).filter(Boolean);
+}
+
+function updateSubitemsTotal(){
+  const subs=getSubitems();
+  const total=subs.reduce((s,i)=>s+i.value,0);
+  const valInp=document.getElementById('f-val');
+  if(subs.length){
+    valInp.value=String(total.toFixed(2)).replace('.',',');
+    valInp.readOnly=true;
+    valInp.style.opacity='.7';
+  }else{
+    valInp.readOnly=false;
+    valInp.style.opacity='1';
+  }
+}
 
 function getFormValues(){
   const name=document.getElementById('f-name').value.trim();
@@ -864,11 +923,12 @@ function getFormValues(){
   const month=parseInt(document.getElementById('f-month').value);
   const year=parseInt(document.getElementById('f-year').value);
   const obs=document.getElementById('f-obs')?.value.trim()||'';
-  return{name,val,rawExpr,type,date,paidDate,month,year,obs};
+  const subitems=getSubitems();
+  return{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems};
 }
 
 async function saveEntry(){
-  const{name,val,rawExpr,type,date,paidDate,month,year,obs}=getFormValues();
+  const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems}=getFormValues();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
   const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
   if(type==='credit'){
@@ -877,7 +937,7 @@ async function saveEntry(){
     if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return}
     let m=month,y=year,d=date;
     for(let i=pnum-1;i<ptotal;i++){
-      await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,groupId,createdAt:Date.now()});
+      await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,groupId,createdAt:Date.now()});
       if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
     }
     toast(`${ptotal-pnum+1} parcela(s) salva(s)!`,'var(--purple)');
@@ -885,19 +945,19 @@ async function saveEntry(){
     const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
-      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,groupId,recurring:true,createdAt:Date.now()});
+      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,groupId,recurring:true,createdAt:Date.now()});
       if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
     }
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
   } else {
-    await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,createdAt:Date.now()});
+    await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,subitems,createdAt:Date.now()});
     toast('Lançamento salvo!');
   }
   closeModal();renderAll();
 }
 
 async function updateEntry(id){
-  const{name,val,rawExpr,type,date,paidDate,month,year,obs}=getFormValues();
+  const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems}=getFormValues();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
   const all=await dbAll();
   const existing=all.find(x=>x.id===id);
@@ -933,7 +993,7 @@ async function updateEntry(id){
     if(futureInGroup.length>0){
       closeModal();
       showConfirm('Editar lançamento','Este lançamento faz parte de uma série. O que deseja atualizar?',[
-        {label:'Apenas este período',cls:'btn-ghost',action:async()=>{await dbPut({...existing,name,value:val,rawExpr,type,date,paidDate,month,year,ym:ym(year,month),obs});toast('Lançamento atualizado!','var(--green)');renderAll()}},
+        {label:'Apenas este período',cls:'btn-ghost',action:async()=>{await dbPut({...existing,name,value:val,rawExpr,type,date,paidDate,month,year,ym:ym(year,month),obs,subitems});toast('Lançamento atualizado!','var(--green)');renderAll()}},
         {label:'Este e todos os seguintes',cls:'btn-primary',action:async()=>{
           const toUpdate=[existing,...futureInGroup].sort((a,b)=>ym(a.year,a.month)-ym(b.year,b.month));
           let m=month,y=year,d=date;
@@ -948,7 +1008,7 @@ async function updateEntry(id){
       return;
     }
   }
-  await dbPut({...existing,name,value:val,rawExpr,type,date,paidDate,month,year,ym:ym(year,month),obs});
+  await dbPut({...existing,name,value:val,rawExpr,type,date,paidDate,month,year,ym:ym(year,month),obs,subitems});
   toast('Lançamento atualizado!','var(--green)');
   closeModal();renderAll();
 }
@@ -990,6 +1050,12 @@ function txCard(t){
         ${t.paidDate?`<span style="color:var(--green)">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
+      ${t.subitems?.length?`
+        <div class="tx-subtoggle" onclick="toggleSubitems(${t.id})">▼ ${t.subitems.length} subitens</div>
+        <div class="tx-subitems" id="subs-${t.id}">
+          ${t.subitems.map(s=>`<div class="tx-subitem"><span>${s.name}</span><span>${fmt(s.value)}</span></div>`).join('')}
+        </div>
+      `:''}
     </div>
     <div class="tx-right">
       <div class="tx-val ${income?'income':'expense'}">${income?'+':'-'}${fmt(t.value)}</div>
@@ -1000,6 +1066,8 @@ function txCard(t){
     </div>
   </div>`;
 }
+
+function toggleSubitems(id){document.getElementById('subs-'+id)?.classList.toggle('open')}
 
 /* ── DASHBOARD ── */
 async function renderDash(){
@@ -1128,6 +1196,16 @@ function showBudgetAddModal(item=null){
         <input id="b-day" type="number" min="1" max="31" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}">
       </div>
     </div>
+
+    <div class="form-group">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <label style="margin:0">Subitens</label>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addSubitem()">+ Subitem</button>
+      </div>
+      <div id="subitems-area"></div>
+      <div class="hint">O valor total será calculado automaticamente pelos subitens</div>
+    </div>
+
     <div class="form-group">
       <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
       <textarea id="b-obs" placeholder="Detalhes...">${isEdit?item.obs||'':''}</textarea>

@@ -676,7 +676,7 @@ function entryFormHtml(t=null){
   const defType=t?.type||'variable';
   const defObs=t?.obs||'';
   // For edit: show rawExpr if available, else the numeric value
-  const defVal=isEdit?(t.rawExpr!=null?String(t.rawExpr):String(t.value)):'';
+  const defVal=isEdit?(t.rawExpr?String(t.rawExpr):String(t.value)):'';
   return`
     <div class="modal-title">${isEdit?'✏️ Editar lançamento':'Novo lançamento'}</div>
     <div class="form-group">
@@ -686,7 +686,7 @@ function entryFormHtml(t=null){
     <div class="form-group">
       <label>Valor</label>
       <div style="display:flex;gap:8px;align-items:center">
-        <input id="f-val" type="text" inputmode="decimal" placeholder="0,00" value="${defVal}" style="flex:1" oninput="onValInput()" data-raw-expr="${isEdit&&t?.rawExpr?t.rawExpr:''}">
+        <input id="f-val" type="text" inputmode="decimal" placeholder="0,00" value="${defVal}" style="flex:1" oninput="onValInput()">
         <button type="button" onclick="openValNumpad()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)" title="Calculadora">📟</button>
       </div>
       <div id="val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
@@ -740,7 +740,7 @@ function entryFormHtml(t=null){
       </div>
       <div id="area-recur-count" style="display:none" class="form-group">
         <label>Quantas vezes repetir</label>
-        <input id="f-recur-count" type="number" value="12" min="1" max="360" inputmode="numeric">
+        <input id="f-recur-count" type="text" inputmode="numeric" pattern="[0-9]*" value="12" placeholder="12">
         <div class="hint">Inclui o período atual</div>
       </div>
     </div>
@@ -759,8 +759,8 @@ function entryFormHtml(t=null){
 function onValInput(){
   const inp=document.getElementById('f-val');
   const raw=inp?.value||'';
-  // if user typed manually (not via numpad), clear stored rawExpr
-  if(inp)inp.dataset.rawExpr='';
+  // typing manually: clear stored rawExpr so getFormValues reads from field directly
+  if(inp&&inp.dataset)inp.dataset.rawExpr='';
   const prev=document.getElementById('val-preview');
   if(!prev)return;
   if(hasOp(raw)){
@@ -781,14 +781,26 @@ function toggleDateClear(btnId,val){
 }
 async function openValNumpad(){
   const valInp=document.getElementById('f-val');
-  const cur=valInp?.value||'';
+  // open with rawExpr stored in dataset, or current field value
+  const cur=valInp?.dataset.rawExpr||valInp?.value||'';
   const result=await openNumpad(cur);
   if(result!==null&&valInp){
-    // Always resolve to final numeric value
-    const r=hasOp(result)?evalExpr(result):parseFloat(result.replace(',','.'));
-    valInp.value=isNaN(r)?result:String(r).replace('.',',');
-    const prev=document.getElementById('val-preview');
-    if(prev)prev.textContent='';
+    if(hasOp(result)){
+      const r=evalExpr(result);
+      if(!isNaN(r)){
+        // store expression in dataset, show expression in field, preview shows result
+        valInp.dataset.rawExpr=result;
+        valInp.value=result;
+        const prev=document.getElementById('val-preview');
+        if(prev){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
+      }
+    }else{
+      // plain number
+      valInp.dataset.rawExpr='';
+      valInp.value=result;
+      const prev=document.getElementById('val-preview');
+      if(prev)prev.textContent='';
+    }
   }
 }
 
@@ -804,17 +816,37 @@ function onRecurChange(){
 }
 
 function showAddModal(){openModal(entryFormHtml())}
-function showEditModal(id){dbAll().then(all=>{const t=all.find(x=>x.id===id);if(t)openModal(entryFormHtml(t))})}
+function showEditModal(id){dbAll().then(all=>{
+  const t=all.find(x=>x.id===id);
+  if(!t)return;
+  openModal(entryFormHtml(t));
+  // set rawExpr in dataset and show preview after modal renders
+  setTimeout(()=>{
+    const inp=document.getElementById('f-val');
+    if(inp&&t.rawExpr){
+      inp.dataset.rawExpr=t.rawExpr;
+      const r=evalExpr(t.rawExpr);
+      const prev=document.getElementById('val-preview');
+      if(prev&&!isNaN(r)){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
+    }
+  },50);
+})}
 
 function getFormValues(){
   const name=document.getElementById('f-name').value.trim();
-  const raw=(document.getElementById('f-val')?.value||'').trim();
-  // Try expression first, then plain number (handle both comma and dot as decimal)
-  let val=NaN;
-  if(hasOp(raw)){val=evalExpr(raw);}
-  if(isNaN(val)){val=parseFloat(raw.replace(',','.'));}
-  if(isNaN(val)){val=parseFloat(raw.replace('.','').replace(',','.'));}
-  const rawExpr=(hasOp(raw)&&!isNaN(val))?raw:null;
+  const valInp=document.getElementById('f-val');
+  const fieldVal=(valInp?.value||'').trim();
+  // dataset.rawExpr set by numpad; field may also have expression if typed directly
+  const storedExpr=valInp?.dataset?.rawExpr||'';
+  const exprToEval=storedExpr||fieldVal;
+  let val=NaN, rawExpr=null;
+  if(hasOp(exprToEval)){
+    val=evalExpr(exprToEval);
+    if(!isNaN(val))rawExpr=exprToEval;
+  }
+  // fallback: plain number in field
+  if(isNaN(val)){val=parseFloat(fieldVal.replace(',','.'));}
+  if(isNaN(val)){val=parseFloat(fieldVal.replace('.','').replace(',','.'));}
   const type=document.getElementById('f-type').value;
   const date=document.getElementById('f-date')?.value||'';
   const paidDate=document.getElementById('f-paid')?.value||'';
@@ -839,7 +871,7 @@ async function saveEntry(){
     }
     toast(`${ptotal-pnum+1} parcela(s) salva(s)!`,'var(--purple)');
   } else if(document.getElementById('f-recur')?.value==='monthly'){
-    const count=Math.max(1,parseInt(document.getElementById('f-recur-count')?.value)||12);
+    const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
       await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,groupId,recurring:true,createdAt:Date.now()});
@@ -866,7 +898,7 @@ async function updateEntry(id){
 
   if(isNewRecur){
     // user wants to replicate from this entry forward
-    const count=Math.max(1,parseInt(document.getElementById('f-recur-count')?.value)||12);
+    const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
     // delete this and all future entries in same group if any
     if(hasGroup){
       const sameGroup=all.filter(x=>x.groupId===existing.groupId&&ym(x.year,x.month)>=ym(existing.year,existing.month));

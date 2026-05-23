@@ -1055,12 +1055,13 @@ async function deleteTx(id){
 
 /* ── SUBITEMS HELPER ── */
 function renderSubitemsHtml(prefix,id,subitems){
-  if(!subitems||!subitems.length)return'';
+  if(!subitems||!subitems.length)return '';
   var rows=subitems.map(function(s){
-    return'<div class="tx-subitem"><span>'+s.name+'</span><span>'+fmt(s.value)+'</span></div>';
+    return '<div class="tx-subitem"><span>'+s.name+'</span><span>'+fmt(s.value)+'</span></div>';
   }).join('');
-  return'<div class="tx-subtoggle" onclick="toggleSubitems(''+prefix+id+'')">▼ '+subitems.length+' subitens</div>'
-    +'<div class="tx-subitems" id="subs-'+prefix+id+'">'+rows+'</div>';
+  var fullId=prefix+id;
+  return '<div class="tx-subtoggle" onclick="toggleSubitems(this)" data-target="subs-'+fullId+'">▼ '+subitems.length+' subitens</div>'
+    +'<div class="tx-subitems" id="subs-'+fullId+'">'+rows+'</div>';
 }
 
 /* ── TX CARD ── */
@@ -1089,7 +1090,7 @@ function txCard(t){
   </div>`;
 }
 
-function toggleSubitems(id){document.getElementById('subs-'+id)?.classList.toggle('open')}
+function toggleSubitems(el){var target=document.getElementById(el.dataset.target);if(target){target.classList.toggle('open');el.textContent=target.classList.contains('open')?'▲ '+el.textContent.slice(2):el.textContent.replace('▲','▼');}}
 
 /* ── DASHBOARD ── */
 async function renderDash(){

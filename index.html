@@ -299,13 +299,10 @@ select option{background:var(--bg3)}
 <div id="page-tx" class="page">
   <div class="page-header">
     <span class="page-title">Lançamentos</span>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="month-nav">
-        <button onclick="changeMonth(-1)">‹</button>
-        <span class="month-label" id="month-label-tx"></span>
-        <button onclick="changeMonth(1)">›</button>
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="showAddModal()">+ Novo</button>
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">‹</button>
+      <span class="month-label" id="month-label-tx"></span>
+      <button onclick="changeMonth(1)">›</button>
     </div>
   </div>
   <div class="tabs" id="tx-tabs">
@@ -315,7 +312,9 @@ select option{background:var(--bg3)}
     <button class="tab" onclick="filterTx('variable',this)">Variáveis</button>
     <button class="tab" onclick="filterTx('credit',this)">Cartão</button>
   </div>
-  <div id="tx-month-label" style="font-size:12px;color:var(--text3);margin-bottom:12px;text-align:center"></div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:12px">
+    <button class="btn btn-primary btn-sm" onclick="showAddModal()">+ Novo</button>
+  </div>
   <div id="tx-list" class="tx-list"></div>
 </div>
 
@@ -1054,6 +1053,16 @@ async function deleteTx(id){
   await dbDel(id);toast('Removido','var(--red)');renderAll();
 }
 
+/* ── SUBITEMS HELPER ── */
+function renderSubitemsHtml(prefix,id,subitems){
+  if(!subitems||!subitems.length)return'';
+  var rows=subitems.map(function(s){
+    return'<div class="tx-subitem"><span>'+s.name+'</span><span>'+fmt(s.value)+'</span></div>';
+  }).join('');
+  return'<div class="tx-subtoggle" onclick="toggleSubitems(''+prefix+id+'')">▼ '+subitems.length+' subitens</div>'
+    +'<div class="tx-subitems" id="subs-'+prefix+id+'">'+rows+'</div>';
+}
+
 /* ── TX CARD ── */
 function txCard(t){
   const income=t.type==='income';
@@ -1068,7 +1077,7 @@ function txCard(t){
         ${t.paidDate?`<span style="color:var(--green)">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
-      ${(t.subitems&&t.subitems.length)?'<div class="tx-subtoggle" onclick="toggleSubitems('+t.id+')">▼ '+t.subitems.length+' subitens</div><div class="tx-subitems" id="subs-'+t.id+'">'+t.subitems.map(function(s){return'<div class="tx-subitem"><span>'+s.name+'</span><span>'+fmt(s.value)+'</span></div>'}).join('')+'</div>':''}
+      ${renderSubitemsHtml('',t.id,t.subitems)}
     </div>
     <div class="tx-right">
       <div class="tx-val ${income?'income':'expense'}">${income?'+':'-'}${fmt(t.value)}</div>
@@ -1397,7 +1406,7 @@ async function renderBudget(){
           ${item.dueDay?` · Venc. dia ${item.dueDay}`:''}
           ${done?` · <span style="color:var(--green)">✅ Realizado</span>`:''}
         </div>
-        ${(item.subitems&&item.subitems.length)?'<div class="tx-subtoggle" onclick="toggleSubitems(\'budget-'+item.id+'\')">'+'▼ '+item.subitems.length+' subitens</div><div class="tx-subitems" id="subs-budget-'+item.id+'">'+item.subitems.map(function(s){return'<div class="tx-subitem"><span>'+s.name+'</span><span>'+fmt(s.value)+'</span></div>'}).join('')+'</div>':''}
+        ${renderSubitemsHtml('budget-',item.id,item.subitems)}
         ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
       </div>
       <div class="budget-right">

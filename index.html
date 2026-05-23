@@ -299,7 +299,14 @@ select option{background:var(--bg3)}
 <div id="page-tx" class="page">
   <div class="page-header">
     <span class="page-title">Lançamentos</span>
-    <button class="btn btn-primary btn-sm" onclick="showAddModal()">+ Novo</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <span class="month-label" id="month-label-tx"></span>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="showAddModal()">+ Novo</button>
+    </div>
   </div>
   <div class="tabs" id="tx-tabs">
     <button class="tab active" onclick="filterTx('all',this)">Todos</button>
@@ -893,13 +900,23 @@ function updateSubitemsTotal(){
   const subs=getSubitems();
   const total=subs.reduce((s,i)=>s+i.value,0);
   const valInp=document.getElementById('f-val')||document.getElementById('b-val');
+  if(!valInp)return;
+  // find calc button next to the value input
+  const calcBtn=valInp.parentElement?.querySelector('button[title="Calculadora"]');
   if(subs.length){
+    // clear any manually entered value, override with sum
     valInp.value=String(total.toFixed(2)).replace('.',',');
+    if(valInp.dataset)valInp.dataset.rawExpr='';
     valInp.readOnly=true;
     valInp.style.opacity='.7';
+    if(calcBtn){calcBtn.disabled=true;calcBtn.style.opacity='.3';calcBtn.style.cursor='not-allowed';}
+    // clear preview
+    const prev=document.getElementById('val-preview')||document.getElementById('b-val-preview');
+    if(prev)prev.textContent='';
   }else{
     valInp.readOnly=false;
     valInp.style.opacity='1';
+    if(calcBtn){calcBtn.disabled=false;calcBtn.style.opacity='1';calcBtn.style.cursor='pointer';}
   }
 }
 
@@ -1051,12 +1068,7 @@ function txCard(t){
         ${t.paidDate?`<span style="color:var(--green)">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
-      ${t.subitems?.length?`
-        <div class="tx-subtoggle" onclick="toggleSubitems(${t.id})">▼ ${t.subitems.length} subitens</div>
-        <div class="tx-subitems" id="subs-${t.id}">
-          ${t.subitems.map(s=>`<div class="tx-subitem"><span>${s.name}</span><span>${fmt(s.value)}</span></div>`).join('')}
-        </div>
-      `:''}
+      ${(t.subitems&&t.subitems.length)?'<div class="tx-subtoggle" onclick="toggleSubitems('+t.id+')">▼ '+t.subitems.length+' subitens</div><div class="tx-subitems" id="subs-'+t.id+'">'+t.subitems.map(function(s){return'<div class="tx-subitem"><span>'+s.name+'</span><span>'+fmt(s.value)+'</span></div>'}).join('')+'</div>':''}
     </div>
     <div class="tx-right">
       <div class="tx-val ${income?'income':'expense'}">${income?'+':'-'}${fmt(t.value)}</div>
@@ -1385,12 +1397,7 @@ async function renderBudget(){
           ${item.dueDay?` · Venc. dia ${item.dueDay}`:''}
           ${done?` · <span style="color:var(--green)">✅ Realizado</span>`:''}
         </div>
-        ${item.subitems?.length?`
-          <div class="tx-subtoggle" onclick="toggleSubitems('budget-${item.id}')">▼ ${item.subitems.length} subitens</div>
-          <div class="tx-subitems" id="subs-budget-${item.id}">
-            ${item.subitems.map(s=>`<div class="tx-subitem"><span>${s.name}</span><span>${fmt(s.value)}</span></div>`).join('')}
-          </div>
-        `:''}
+        ${(item.subitems&&item.subitems.length)?'<div class="tx-subtoggle" onclick="toggleSubitems(\'budget-'+item.id+'\')">'+'▼ '+item.subitems.length+' subitens</div><div class="tx-subitems" id="subs-budget-'+item.id+'">'+item.subitems.map(function(s){return'<div class="tx-subitem"><span>'+s.name+'</span><span>'+fmt(s.value)+'</span></div>'}).join('')+'</div>':''}
         ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
       </div>
       <div class="budget-right">

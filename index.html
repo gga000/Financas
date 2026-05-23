@@ -165,7 +165,7 @@ select option{background:var(--bg3)}
 .proj-balance{font-weight:600;min-width:80px;text-align:right}
 
 /* BUDGET PAGE */
-.budget-item{display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 13px;transition:background .15s;margin-bottom:7px}
+.budget-item{display:flex;align-items:flex-start;gap:12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 13px;transition:background .15s;margin-bottom:7px}
 .budget-item.done{opacity:.55}
 .budget-item.done .budget-name{text-decoration:line-through}
 .budget-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s;font-size:13px}
@@ -182,7 +182,7 @@ select option{background:var(--bg3)}
 
 .tx-subtoggle{font-size:11px;color:var(--blue);margin-top:6px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .tx-subitems{margin-top:8px;border-top:1px dashed var(--border);padding-top:8px;display:none}
-.tx-subitems.open{display:block}
+.tx-subitems.open{display:block!important}
 .tx-subitem{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:3px 0;font-family:var(--mono)}
 .subitem-row{display:grid;grid-template-columns:1fr 90px 32px;gap:8px;margin-bottom:8px;align-items:center}
 .subitem-remove{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;height:38px;cursor:pointer}
@@ -299,11 +299,7 @@ select option{background:var(--bg3)}
 <div id="page-tx" class="page">
   <div class="page-header">
     <span class="page-title">Lançamentos</span>
-    <div class="month-nav">
-      <button onclick="changeMonth(-1)">‹</button>
-      <span class="month-label" id="month-label-tx"></span>
-      <button onclick="changeMonth(1)">›</button>
-    </div>
+    <button class="btn btn-primary btn-sm" onclick="showAddModal()">+ Novo</button>
   </div>
   <div class="tabs" id="tx-tabs">
     <button class="tab active" onclick="filterTx('all',this)">Todos</button>
@@ -312,8 +308,12 @@ select option{background:var(--bg3)}
     <button class="tab" onclick="filterTx('variable',this)">Variáveis</button>
     <button class="tab" onclick="filterTx('credit',this)">Cartão</button>
   </div>
-  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:12px">
-    <button class="btn btn-primary btn-sm" onclick="showAddModal()">+ Novo</button>
+  <div style="display:flex;justify-content:center;align-items:center;margin-bottom:12px">
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">‹</button>
+      <span class="month-label" id="month-label-tx"></span>
+      <button onclick="changeMonth(1)">›</button>
+    </div>
   </div>
   <div id="tx-list" class="tx-list"></div>
 </div>

@@ -486,7 +486,6 @@ function openDB(){
         d.createObjectStore('budget',{keyPath:'id',autoIncrement:true});
       }
       if(!d.objectStoreNames.contains('budgetDone')){
-        // key = budgetItemId + '_' + YYYYMM
         d.createObjectStore('budgetDone',{keyPath:'key'});
       }
     };
@@ -521,14 +520,12 @@ function fmt(v){return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionD
 function todayISO(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function fmtDate(iso){if(!iso)return'';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`}
 function addMonths(isoDate,n){
-  // If date is empty/invalid, build a fake date from the next period just for month stepping
   const base=isoDate?new Date(isoDate+'T12:00:00'):null;
   if(!base||isNaN(base)){return '';}
   base.setMonth(base.getMonth()+n);
   return base.toISOString().slice(0,10);
 }
 function stepMonth(isoDate,y,m){
-  // returns next date for series: if isoDate is valid, uses addMonths; otherwise returns ''
   if(!isoDate)return '';
   return addMonths(isoDate,1);
 }
@@ -598,7 +595,6 @@ function _renderNumpad(){
 }
 function nkNum(ch){
   if(ch===','&&(_numpadExpr.includes(','))){
-    // allow comma per number segment
     const parts=_numpadExpr.split(/[+\-*/]/);
     if(parts[parts.length-1].includes(','))return;
   }
@@ -606,7 +602,6 @@ function nkNum(ch){
 }
 function nkOp(op){
   if(op==='('){
-    // toggle paren
     const open=(_numpadExpr.match(/\(/g)||[]).length;
     const close=(_numpadExpr.match(/\)/g)||[]).length;
     _numpadExpr+=open>close?')':'(';
@@ -700,7 +695,6 @@ function entryFormHtml(t=null){
   const defYear=t!=null?t.year:curYear;
   const defType=t?.type||'variable';
   const defObs=t?.obs||'';
-  // For edit: show rawExpr if available, else the numeric value
   const defVal=isEdit?(t.rawExpr?String(t.rawExpr):String(t.value)):'';
   return`
     <div class="modal-title">${isEdit?'✏️ Editar lançamento':'Novo lançamento'}</div>
@@ -794,7 +788,6 @@ function entryFormHtml(t=null){
 function onValInput(){
   const inp=document.getElementById('f-val');
   const raw=inp?.value||'';
-  // typing manually: clear stored rawExpr so getFormValues reads from field directly
   if(inp&&inp.dataset)inp.dataset.rawExpr='';
   const prev=document.getElementById('val-preview');
   if(!prev)return;
@@ -816,21 +809,18 @@ function toggleDateClear(btnId,val){
 }
 async function openValNumpad(){
   const valInp=document.getElementById('f-val');
-  // open with rawExpr stored in dataset, or current field value
   const cur=valInp?.dataset.rawExpr||valInp?.value||'';
   const result=await openNumpad(cur);
   if(result!==null&&valInp){
     if(hasOp(result)){
       const r=evalExpr(result);
       if(!isNaN(r)){
-        // store expression in dataset, show expression in field, preview shows result
         valInp.dataset.rawExpr=result;
         valInp.value=result;
         const prev=document.getElementById('val-preview');
         if(prev){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
       }
     }else{
-      // plain number
       valInp.dataset.rawExpr='';
       valInp.value=result;
       const prev=document.getElementById('val-preview');
@@ -855,7 +845,6 @@ function showEditModal(id){dbAll().then(all=>{
   const t=all.find(x=>x.id===id);
   if(!t)return;
   openModal(entryFormHtml(t));
-  // set rawExpr in dataset and show preview after modal renders
   setTimeout(()=>{
     const inp=document.getElementById('f-val');
     if(inp&&t.rawExpr){
@@ -900,16 +889,13 @@ function updateSubitemsTotal(){
   const total=subs.reduce((s,i)=>s+i.value,0);
   const valInp=document.getElementById('f-val')||document.getElementById('b-val');
   if(!valInp)return;
-  // find calc button next to the value input
   const calcBtn=valInp.parentElement?.querySelector('button[title="Calculadora"]');
   if(subs.length){
-    // clear any manually entered value, override with sum
     valInp.value=String(total.toFixed(2)).replace('.',',');
     if(valInp.dataset)valInp.dataset.rawExpr='';
     valInp.readOnly=true;
     valInp.style.opacity='.7';
     if(calcBtn){calcBtn.disabled=true;calcBtn.style.opacity='.3';calcBtn.style.cursor='not-allowed';}
-    // clear preview
     const prev=document.getElementById('val-preview')||document.getElementById('b-val-preview');
     if(prev)prev.textContent='';
   }else{
@@ -923,7 +909,6 @@ function getFormValues(){
   const name=document.getElementById('f-name').value.trim();
   const valInp=document.getElementById('f-val');
   const fieldVal=(valInp?.value||'').trim();
-  // dataset.rawExpr set by numpad; field may also have expression if typed directly
   const storedExpr=valInp?.dataset?.rawExpr||'';
   const exprToEval=storedExpr||fieldVal;
   let val=NaN, rawExpr=null;
@@ -931,7 +916,6 @@ function getFormValues(){
     val=evalExpr(exprToEval);
     if(!isNaN(val))rawExpr=exprToEval;
   }
-  // fallback: plain number in field
   if(isNaN(val)){val=parseFloat(fieldVal.replace(',','.'));}
   if(isNaN(val)){val=parseFloat(fieldVal.replace('.','').replace(',','.'));}
   const type=document.getElementById('f-type').value;
@@ -985,9 +969,7 @@ async function updateEntry(id){
   const hasGroup=!!existing.groupId;
 
   if(isNewRecur){
-    // user wants to replicate from this entry forward
     const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
-    // delete this and all future entries in same group if any
     if(hasGroup){
       const sameGroup=all.filter(x=>x.groupId===existing.groupId&&ym(x.year,x.month)>=ym(existing.year,existing.month));
       for(const x of sameGroup)await dbDel(x.id);
@@ -1053,15 +1035,27 @@ async function deleteTx(id){
   await dbDel(id);toast('Removido','var(--red)');renderAll();
 }
 
-/* ── SUBITEMS HELPER ── */
-function renderSubitemsHtml(prefix,id,subitems){
+/* ── SUBITEMS HELPER (corrigido) ── */
+function renderSubitemsHtml(subitems){
   if(!subitems||!subitems.length)return '';
   var rows=subitems.map(function(s){
-    return '<div class="tx-subitem"><span>'+s.name+'</span><span>'+fmt(s.value)+'</span></div>';
+    // escape simples para evitar quebra de HTML
+    var safeName=s.name.replace(/[&<>]/g,function(m){if(m==='&')return'&amp;';if(m==='<')return'&lt;';if(m==='>')return'&gt;';return m;});
+    return '<div class="tx-subitem"><span>'+safeName+'</span><span>'+fmt(s.value)+'</span></div>';
   }).join('');
-  var fullId=prefix+id;
-  return '<div class="tx-subtoggle" onclick="toggleSubitems(this)" data-target="subs-'+fullId+'">▼ '+subitems.length+' subitens</div>'
-    +'<div class="tx-subitems" id="subs-'+fullId+'">'+rows+'</div>';
+  return '<div class="tx-subtoggle" onclick="toggleSubitems(this)">▼ '+subitems.length+' subitens</div>'
+    +'<div class="tx-subitems">'+rows+'</div>';
+}
+
+/* toggle melhorado: busca o próximo irmão com a classe correta */
+function toggleSubitems(el){
+  var target=el.nextElementSibling;
+  while(target && !target.classList.contains('tx-subitems')) target=target.nextElementSibling;
+  if(target){
+    target.classList.toggle('open');
+    var novoTexto=target.classList.contains('open') ? '▲ ' + el.textContent.slice(2) : '▼ ' + el.textContent.slice(2);
+    el.textContent=novoTexto;
+  }
 }
 
 /* ── TX CARD ── */
@@ -1078,7 +1072,7 @@ function txCard(t){
         ${t.paidDate?`<span style="color:var(--green)">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
-      ${renderSubitemsHtml('',t.id,t.subitems)}
+      ${renderSubitemsHtml(t.subitems)}
     </div>
     <div class="tx-right">
       <div class="tx-val ${income?'income':'expense'}">${income?'+':'-'}${fmt(t.value)}</div>
@@ -1089,8 +1083,6 @@ function txCard(t){
     </div>
   </div>`;
 }
-
-function toggleSubitems(el){var target=document.getElementById(el.dataset.target);if(target){target.classList.toggle('open');el.textContent=target.classList.contains('open')?'▲ '+el.textContent.slice(2):el.textContent.replace('▲','▼');}}
 
 /* ── DASHBOARD ── */
 async function renderDash(){
@@ -1321,18 +1313,15 @@ async function toggleBudgetDone(budgetId){
   const key=doneKey(budgetId,budgetYear,budgetMonth);
   const existing=await doneGet(key);
   if(existing){
-    // undo: remove the tx we created and remove done mark
     if(existing.txId){
       await dbDel(existing.txId);
     }
     await doneDel(key);
     toast('Marcação desfeita','var(--amber)');
   } else {
-    // mark as done: create a real tx entry
     const buds=await budgetAll();
     const item=buds.find(x=>x.id===budgetId);
     if(!item)return;
-    // build a date for this month using dueDay if available
     const day=item.dueDay||1;
     const dateStr=`${budgetYear}-${String(budgetMonth+1).padStart(2,'0')}-${String(Math.min(day,28)).padStart(2,'0')}`;
     const txId=await dbAdd({
@@ -1352,7 +1341,6 @@ async function toggleBudgetDone(budgetId){
     toast('Lançamento registrado! ✅','var(--green)');
   }
   renderBudget();
-  // refresh tx page too if open
   const p=document.querySelector('.page.active');
   if(p&&p.id==='page-tx')renderTx();
   if(p&&p.id==='page-dash')renderDash();
@@ -1361,7 +1349,6 @@ async function toggleBudgetDone(budgetId){
 async function deleteBudgetItem(id){
   if(!confirm('Remover este item do orçamento?'))return;
   await budgetDel(id);
-  // remove all done marks for this item
   const t=db.transaction('budgetDone','readwrite');
   const store=t.objectStore('budgetDone');
   store.getAll().onsuccess=e=>{
@@ -1389,7 +1376,6 @@ async function renderBudget(){
   document.getElementById('budget-progress-fill').style.width=pct+'%';
   document.getElementById('budget-progress-fill').style.background=pct<50?'var(--amber)':pct<100?'var(--blue)':'var(--green)';
   document.getElementById('budget-summary-text').textContent=`${doneIds.size} de ${items.length} realizados · ${fmt(doneTotal)} de ${fmt(total)} (${pct}%)`;
-  // sort: not done first, then by dueDay
   const sorted=[...items].sort((a,b)=>{
     const ad=doneIds.has(a.id)?1:0,bd=doneIds.has(b.id)?1:0;
     if(ad!==bd)return ad-bd;
@@ -1407,7 +1393,7 @@ async function renderBudget(){
           ${item.dueDay?` · Venc. dia ${item.dueDay}`:''}
           ${done?` · <span style="color:var(--green)">✅ Realizado</span>`:''}
         </div>
-        ${renderSubitemsHtml('budget-',item.id,item.subitems)}
+        ${renderSubitemsHtml(item.subitems)}
         ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
       </div>
       <div class="budget-right">

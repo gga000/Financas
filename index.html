@@ -55,7 +55,7 @@ body{min-height:100vh;padding-bottom:76px}
 .color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s;flex-shrink:0}
 .color-swatch.selected{border-color:var(--text)}
 /* PERSON FILTER BAR */
-#person-filter-bar{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#person-filter-bar-dash,#person-filter-bar-tx{display:flex;gap:6px;margin:12px 0;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 #person-filter-bar::-webkit-scrollbar{display:none}
 .person-filter-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);font-weight:500;display:inline-flex;align-items:center;gap:5px}
 .person-filter-btn.active{border-color:currentColor;font-weight:600}
@@ -1125,7 +1125,7 @@ function getFormValues(){
 }
 
 async function saveEntry(){
-  const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems}=getFormValues();
+  const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId}=getFormValues();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
   const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
   if(type==='credit'){
@@ -1154,7 +1154,7 @@ async function saveEntry(){
 }
 
 async function updateEntry(id){
-  const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems}=getFormValues();
+  const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId}=getFormValues();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
   const all=await dbAll();
   const existing=all.find(x=>x.id===id);

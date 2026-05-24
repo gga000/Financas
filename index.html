@@ -108,7 +108,7 @@ body{min-height:100vh;padding-bottom:76px}
 .tx-icon.credit{background:var(--purple-bg);border:1px solid var(--purple-border)}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.tx-meta{font-size:11px;color:var(--text3);margin-top:3px;display:flex;flex-direction:column;gap:3px}
+.tx-meta{font-size:11px;color:var(--text3);margin-top:3px;display:flex;flex-direction:row;flex-wrap:wrap;gap:4px 8px;align-items:center}
 .tx-obs{font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5;word-break:break-word}
 .tx-right{text-align:right;flex-shrink:0}
 .tx-val{font-size:14px;font-weight:600;font-family:var(--mono)}
@@ -189,7 +189,7 @@ select option{background:var(--bg3)}
 .budget-check.checked{background:var(--green);border-color:var(--green);color:#000}
 .budget-info{flex:1;min-width:0}
 .budget-name{font-size:14px;font-weight:500;color:var(--text)}
-.budget-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.budget-meta{font-size:11px;color:var(--text3);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
 .budget-right{text-align:right;flex-shrink:0}
 .budget-val{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text2)}
 .budget-actions{display:flex;gap:8px;margin-top:3px;justify-content:flex-end}
@@ -1262,15 +1262,11 @@ function txCard(t){
     <div class="tx-info">
       <div class="tx-name">${t.name}</div>
       <div class="tx-meta">
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:nowrap">
-          <span>${CAT_LABELS[t.type]||''}</span>
-          ${t.recurring||t.groupId?'<span class="badge badge-blue">série</span>':''}
-        </div>
-        ${(t.date||t.paidDate||t._pessoa)?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap;overflow:hidden">
-          ${t.date?'<span style="white-space:nowrap">📅 Venc. '+fmtDate(t.date)+'</span>':''}
-          ${t.paidDate?'<span style="color:var(--green);white-space:nowrap">✅ Pago '+fmtDate(t.paidDate)+'</span>':''}
-          ${t._pessoa?'<span class="person-tag">'+personAvatarHtml(t._pessoa,14)+' '+t._pessoa.nome+'</span>':''}
-        </div>`:''}
+        <span style="white-space:nowrap">${CAT_LABELS[t.type]||''}</span>
+        ${t.recurring||t.groupId?'<span class="badge badge-blue" style="white-space:nowrap">série</span>':''}
+        ${t.date?`<span style="white-space:nowrap">📅 Venc. ${fmtDate(t.date)}</span>`:''}
+        ${t.paidDate?`<span style="color:var(--green);white-space:nowrap">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
+        ${t._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(t._pessoa,14)} ${t._pessoa.nome}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
       ${renderSubitemsHtml(t.subitems)}
@@ -1571,6 +1567,7 @@ async function toggleBudgetDone(budgetId){
       ym:ym(budgetYear,budgetMonth),
       date:dateStr,
       obs:item.obs||'',
+      pessoaId:item.pessoaId||null,
       fromBudget:true,
       createdAt:Date.now()
     });
@@ -1629,10 +1626,10 @@ async function renderBudget(){
       <div class="budget-info">
         <div class="budget-name">${item.name}</div>
         <div class="budget-meta">
-          ${CAT_LABELS[item.type]||''}
-          ${item.dueDay?` · Venc. dia ${item.dueDay}`:''}
-          ${done?` · <span style="color:var(--green)">✅ Realizado</span>`:''}
-          ${item._pessoa?` · ${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}`:''}
+          <span style="white-space:nowrap">${CAT_LABELS[item.type]||''}</span>
+          ${item.dueDay?`<span style="white-space:nowrap">📅 Dia ${item.dueDay}</span>`:''}
+          ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
+          ${item._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
         </div>
         ${renderSubitemsHtml(item.subitems)}
         ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}

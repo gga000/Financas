@@ -14,9 +14,9 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --bg:#0d0f1a;--bg2:#13162a;--bg3:#1a1e35;--bg4:#21263f;--bg5:#282e4a;
-  --border:#2a2f50;--border2:#353b5c;
-  --text:#dde2ff;--text2:#7b83b8;--text3:#3d4470;
+  --bg:#0d0f1a;--bg2:#151829;--bg3:#1c2038;--bg4:#242848;--bg5:#282e4a;
+  --border:#323760;--border2:#3e4470;
+  --text:#eef0ff;--text2:#9ba3d4;--text3:#5a6294;
   --green:#3ddc84;--green-bg:#0d2e1e;--green-border:#1a4a2a;
   --red:#ff6b6b;--red-bg:#2e0d0d;--red-border:#4a1a1a;
   --blue:#5b8eff;--blue-bg:#0d1a3d;--blue-border:#1a2a4a;
@@ -42,6 +42,23 @@ body.light{
 html,body{background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
 body{min-height:100vh;padding-bottom:76px}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* PESSOAS */
+.person-avatar{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;text-transform:uppercase}
+.person-tag{display:inline-flex;align-items:center;gap:5px;padding:2px 8px 2px 4px;border-radius:20px;font-size:11px;font-weight:500;background:var(--bg4);border:1px solid var(--border)}
+.person-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px 3px 5px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:2px solid transparent;transition:all .2s;background:var(--bg3)}
+.person-chip.selected{border-color:currentColor}
+.person-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.person-row{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px}
+.person-row-name{flex:1;font-size:14px;font-weight:500}
+.color-swatches{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s;flex-shrink:0}
+.color-swatch.selected{border-color:var(--text)}
+/* PERSON FILTER BAR */
+#person-filter-bar{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#person-filter-bar::-webkit-scrollbar{display:none}
+.person-filter-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);font-weight:500;display:inline-flex;align-items:center;gap:5px}
+.person-filter-btn.active{border-color:currentColor;font-weight:600}
 
 /* NAV */
 #nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -284,8 +301,13 @@ select option{background:var(--bg3)}
     <div class="install-text"><strong>Instalar como app</strong><br>Adicione à tela inicial</div>
     <button class="btn btn-primary btn-sm" onclick="installPWA()">Instalar</button>
   </div>
+  <div id="person-filter-bar-dash"></div>
   <div class="summary-grid" id="summary-cards"></div>
   <div class="card"><div class="card-title">Comprometimento da renda</div><div id="prog-area"></div></div>
+  <div class="card" id="pessoa-summary-card" style="display:none">
+    <div class="card-title">Por responsável</div>
+    <div id="pessoa-summary"></div>
+  </div>
   <div class="card">
     <div class="section-header">
       <span class="section-title">Últimos lançamentos</span>
@@ -301,13 +323,6 @@ select option{background:var(--bg3)}
     <span class="page-title">Lançamentos</span>
     <button class="btn btn-primary btn-sm" onclick="showAddModal()">+ Novo</button>
   </div>
-  <div class="tabs" id="tx-tabs">
-    <button class="tab active" onclick="filterTx('all',this)">Todos</button>
-    <button class="tab" onclick="filterTx('income',this)">Receitas</button>
-    <button class="tab" onclick="filterTx('fixed',this)">Fixas</button>
-    <button class="tab" onclick="filterTx('variable',this)">Variáveis</button>
-    <button class="tab" onclick="filterTx('credit',this)">Cartão</button>
-  </div>
   <div style="display:flex;justify-content:center;align-items:center;margin-bottom:12px">
     <div class="month-nav">
       <button onclick="changeMonth(-1)">‹</button>
@@ -315,6 +330,14 @@ select option{background:var(--bg3)}
       <button onclick="changeMonth(1)">›</button>
     </div>
   </div>
+  <div class="tabs" id="tx-tabs">
+    <button class="tab active" onclick="filterTx('all',this)">Todos</button>
+    <button class="tab" onclick="filterTx('income',this)">Receitas</button>
+    <button class="tab" onclick="filterTx('fixed',this)">Fixas</button>
+    <button class="tab" onclick="filterTx('variable',this)">Variáveis</button>
+    <button class="tab" onclick="filterTx('credit',this)">Cartão</button>
+  </div>
+  <div id="person-filter-bar-tx"></div>
   <div id="tx-list" class="tx-list"></div>
 </div>
 
@@ -368,6 +391,11 @@ select option{background:var(--bg3)}
 <!-- CONFIGURAÇÕES -->
 <div id="page-cfg" class="page">
   <div class="page-header"><span class="page-title">Configurações</span></div>
+  <div class="card">
+    <div class="card-title">Pessoas</div>
+    <div id="pessoas-list" class="person-list"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%" onclick="showAddPessoaModal()">+ Adicionar pessoa</button>
+  </div>
   <div class="card">
     <div class="card-title">Aparência</div>
     <div class="settings-row">
@@ -475,7 +503,7 @@ function toggleTheme(dark){applyTheme(dark)}
 /* ── DB ── */
 function openDB(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open('financas_pwa_v2',2);
+    const r=indexedDB.open('financas_pwa_v2',3);
     r.onupgradeneeded=e=>{
       const d=e.target.result;
       if(!d.objectStoreNames.contains('tx')){
@@ -487,6 +515,9 @@ function openDB(){
       }
       if(!d.objectStoreNames.contains('budgetDone')){
         d.createObjectStore('budgetDone',{keyPath:'key'});
+      }
+      if(!d.objectStoreNames.contains('pessoas')){
+        d.createObjectStore('pessoas',{keyPath:'id',autoIncrement:true});
       }
     };
     r.onsuccess=e=>res(e.target.result);
@@ -503,6 +534,10 @@ const budgetAll=()=>new Promise(res=>{const t=db.transaction('budget','readonly'
 const budgetAdd=item=>new Promise((res,rej)=>{const t=db.transaction('budget','readwrite');const r=t.objectStore('budget').add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const budgetPut=item=>new Promise((res,rej)=>{const t=db.transaction('budget','readwrite');const r=t.objectStore('budget').put(item);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)});
 const budgetDel=id=>new Promise(res=>{const t=db.transaction('budget','readwrite');t.objectStore('budget').delete(id).onsuccess=()=>res()});
+const pessoasAll=()=>new Promise(res=>{const t=db.transaction('pessoas','readonly');t.objectStore('pessoas').getAll().onsuccess=e=>res(e.target.result||[])});
+const pessoasAdd=item=>new Promise((res,rej)=>{const t=db.transaction('pessoas','readwrite');const r=t.objectStore('pessoas').add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const pessoasPut=item=>new Promise((res,rej)=>{const t=db.transaction('pessoas','readwrite');const r=t.objectStore('pessoas').put(item);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)});
+const pessoasDel=id=>new Promise(res=>{const t=db.transaction('pessoas','readwrite');t.objectStore('pessoas').delete(id).onsuccess=()=>res()});
 
 function doneKey(budgetId,y,m){return`${budgetId}_${y}${String(m+1).padStart(2,'0')}`}
 const doneGet=key=>new Promise(res=>{try{const t=db.transaction('budgetDone','readonly');const r=t.objectStore('budgetDone').get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null)}catch{res(null)}});
@@ -513,6 +548,27 @@ const doneAllForMonth=(y,m)=>new Promise(res=>{
   const t=db.transaction('budgetDone','readonly');
   t.objectStore('budgetDone').getAll().onsuccess=e=>res((e.target.result||[]).filter(r=>r.key.endsWith(prefix)));
 });
+
+/* ── PESSOAS STATE ── */
+const PERSON_COLORS=['#5b8eff','#3ddc84','#ff6b6b','#ffb547','#a78bfa','#2dd4bf'];
+const PERSON_LABELS=['Azul','Verde','Vermelho','Âmbar','Roxo','Teal'];
+let pessoaFilter=null; // null = todos
+
+function personInitials(nome){
+  const parts=nome.trim().split(' ');
+  if(parts.length>=2)return(parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+  return nome.substring(0,2).toUpperCase();
+}
+function personAvatarHtml(pessoa,size){
+  if(!pessoa)return'';
+  const sz=size||24;
+  return`<span class="person-avatar" style="background:${pessoa.color};width:${sz}px;height:${sz}px;font-size:${Math.round(sz*0.42)}px">${personInitials(pessoa.nome)}</span>`;
+}
+async function getPessoaById(id){
+  if(!id)return null;
+  const all=await pessoasAll();
+  return all.find(p=>p.id===id)||null;
+}
 
 /* ── UTILS ── */
 function ym(y,m){return y*100+m}
@@ -613,6 +669,140 @@ function nkOp(op){
 }
 function nkDel(){
   _numpadExpr=_numpadExpr.slice(0,-1);_renderNumpad();
+}
+
+/* ── PESSOAS LOGIC ── */
+async function renderPessoasConfig(){
+  const list=document.getElementById('pessoas-list');
+  if(!list)return;
+  const pessoas=await pessoasAll();
+  if(!pessoas.length){list.innerHTML='<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma pessoa cadastrada.</div>';return;}
+  list.innerHTML=pessoas.map(p=>`
+    <div class="person-row">
+      ${personAvatarHtml(p,32)}
+      <span class="person-row-name">${p.nome}</span>
+      <button class="tx-btn edit" onclick="showEditPessoaModal(${p.id})">✏️</button>
+      <button class="tx-btn del" onclick="deletePessoa(${p.id})">✕</button>
+    </div>`).join('');
+}
+
+function showAddPessoaModal(pessoa=null){
+  const isEdit=!!pessoa;
+  const defColor=pessoa?.color||PERSON_COLORS[0];
+  openModal(`
+    <div class="modal-title">${isEdit?'Editar pessoa':'Nova pessoa'}</div>
+    <div class="form-group">
+      <label>Nome</label>
+      <input id="p-nome" placeholder="Ex: Diego, Camila..." value="${isEdit?pessoa.nome:''}">
+    </div>
+    <div class="form-group">
+      <label>Cor</label>
+      <div class="color-swatches" id="p-color-swatches">
+        ${PERSON_COLORS.map((c,i)=>`<div class="color-swatch${c===defColor?' selected':''}" style="background:${c}" data-color="${c}" onclick="selectPessoaColor('${c}')"></div>`).join('')}
+      </div>
+      <input type="hidden" id="p-color" value="${defColor}">
+    </div>
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn btn-primary" style="flex:1" onclick="${isEdit?`savePessoaEdit(${pessoa.id})`:'savePessoa()'}">Salvar</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+
+function selectPessoaColor(c){
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===c));
+  const inp=document.getElementById('p-color');
+  if(inp)inp.value=c;
+}
+
+async function showEditPessoaModal(id){
+  const all=await pessoasAll();
+  const p=all.find(x=>x.id===id);
+  if(p)showAddPessoaModal(p);
+}
+
+async function savePessoa(){
+  const nome=document.getElementById('p-nome')?.value.trim();
+  const color=document.getElementById('p-color')?.value||PERSON_COLORS[0];
+  if(!nome){toast('Informe o nome!','var(--red)');return;}
+  await pessoasAdd({nome,color,createdAt:Date.now()});
+  toast('Pessoa adicionada!','var(--teal)');
+  closeModal();renderPessoasConfig();renderPersonFilterBars();
+}
+
+async function savePessoaEdit(id){
+  const nome=document.getElementById('p-nome')?.value.trim();
+  const color=document.getElementById('p-color')?.value||PERSON_COLORS[0];
+  if(!nome){toast('Informe o nome!','var(--red)');return;}
+  const all=await pessoasAll();
+  const existing=all.find(x=>x.id===id);
+  if(!existing)return;
+  await pessoasPut({...existing,nome,color});
+  toast('Pessoa atualizada!','var(--teal)');
+  closeModal();renderPessoasConfig();renderPersonFilterBars();renderAll();
+}
+
+async function deletePessoa(id){
+  if(!confirm('Remover esta pessoa? Os lançamentos associados não serão apagados.'))return;
+  await pessoasDel(id);
+  toast('Pessoa removida','var(--red)');
+  renderPessoasConfig();renderPersonFilterBars();renderAll();
+}
+
+// Render pessoa chips inside a form (tx or budget)
+async function renderPessoaChips(containerId,selectedId){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const pessoas=await pessoasAll();
+  if(!pessoas.length){
+    const group=document.getElementById(containerId.replace('-chips','-group'));
+    if(group)group.style.display='none';
+    return;
+  }
+  el.innerHTML=pessoas.map(p=>`
+    <div class="person-chip${p.id===selectedId?' selected':''}" style="color:${p.color};border-color:${p.id===selectedId?p.color:'transparent'}"
+      data-pid="${p.id}" onclick="togglePessoaChip(this,'${containerId}')">
+      ${personAvatarHtml(p,18)} ${p.nome}
+    </div>`).join('');
+}
+
+function togglePessoaChip(el,containerId){
+  const already=el.classList.contains('selected');
+  document.querySelectorAll('#'+containerId+' .person-chip').forEach(c=>{
+    c.classList.remove('selected');
+    c.style.borderColor='transparent';
+  });
+  if(!already){
+    el.classList.add('selected');
+    el.style.borderColor=el.style.color;
+  }
+}
+
+function getSelectedPessoa(containerId){
+  const sel=document.querySelector('#'+containerId+' .person-chip.selected');
+  return sel?parseInt(sel.dataset.pid):null;
+}
+
+// Person filter bars
+async function renderPersonFilterBars(){
+  const pessoas=await pessoasAll();
+  ['dash','tx'].forEach(page=>{
+    const el=document.getElementById('person-filter-bar-'+page);
+    if(!el)return;
+    if(!pessoas.length){el.innerHTML='';return;}
+    el.innerHTML='<button class="person-filter-btn active" data-pid="all" onclick="setPessoaFilter(null,this)">👥 Todos</button>'
+      +pessoas.map(p=>`<button class="person-filter-btn" data-pid="${p.id}" onclick="setPessoaFilter(${p.id},this)" style="color:${p.color}">${personAvatarHtml(p,16)} ${p.nome}</button>`).join('');
+  });
+}
+
+function setPessoaFilter(id,btn){
+  pessoaFilter=id;
+  // update active state in both bars
+  document.querySelectorAll('.person-filter-btn').forEach(b=>{
+    const match=(id===null&&b.dataset.pid==='all')||(b.dataset.pid==id);
+    b.classList.toggle('active',match);
+    if(match&&id!==null){b.style.fontWeight='600';}else if(id===null){b.style.fontWeight='';}
+  });
+  renderAll();
 }
 
 /* ── EXPORT / IMPORT ── */
@@ -755,6 +945,10 @@ function entryFormHtml(t=null){
       <div class="hint">O valor total será calculado automaticamente pelos subitens</div>
     </div>
 
+    <div class="form-group" id="f-pessoa-group">
+      <label>Responsável <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <div id="f-pessoa-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+    </div>
     <div class="form-group">
       <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
       <textarea id="f-obs" placeholder="Detalhes, itens agrupados...">${defObs}</textarea>
@@ -840,7 +1034,7 @@ function onRecurChange(){
   if(el)el.style.display=v==='monthly'?'block':'none';
 }
 
-function showAddModal(){openModal(entryFormHtml())}
+function showAddModal(){openModal(entryFormHtml());setTimeout(()=>renderPessoaChips('f-pessoa-chips',null),50);}
 function showEditModal(id){dbAll().then(all=>{
   const t=all.find(x=>x.id===id);
   if(!t)return;
@@ -857,6 +1051,7 @@ function showEditModal(id){dbAll().then(all=>{
       t.subitems.forEach(s=>addSubitem('tx',s.name,s.value));
       updateSubitemsTotal();
     }
+    renderPessoaChips('f-pessoa-chips',t.pessoaId||null);
   },50);
 })}
 
@@ -925,7 +1120,8 @@ function getFormValues(){
   const year=parseInt(document.getElementById('f-year').value);
   const obs=document.getElementById('f-obs')?.value.trim()||'';
   const subitems=getSubitems();
-  return{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems};
+  const pessoaId=getSelectedPessoa('f-pessoa-chips');
+  return{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId};
 }
 
 async function saveEntry(){
@@ -951,7 +1147,7 @@ async function saveEntry(){
     }
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
   } else {
-    await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,subitems,createdAt:Date.now()});
+    await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,subitems,pessoaId,createdAt:Date.now()});
     toast('Lançamento salvo!');
   }
   closeModal();renderAll();
@@ -979,7 +1175,7 @@ async function updateEntry(id){
     const newGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
-      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,groupId:newGroupId,recurring:true,createdAt:Date.now()});
+      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId:newGroupId,recurring:true,createdAt:Date.now()});
       if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
     }
     toast(`Série de ${count} meses criada!`,'var(--teal)');
@@ -1070,6 +1266,7 @@ function txCard(t){
         ${t.recurring||t.groupId?'<span class="badge badge-blue">série</span>':''}
         ${t.date?`<span>📅 Venc. ${fmtDate(t.date)}</span>`:''}
         ${t.paidDate?`<span style="color:var(--green)">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
+        ${t._pessoa?`<span class="person-tag">${personAvatarHtml(t._pessoa,14)} ${t._pessoa.nome}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
       ${renderSubitemsHtml(t.subitems)}
@@ -1107,7 +1304,32 @@ async function renderDash(){
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
     <div class="prog-labels"><span>${pct}% comprometido</span><span style="color:${barColor};font-weight:500">${pct<60?'✓ Saudável':pct<85?'⚠ Atenção':'✗ Alto'}</span></div>
   `;
-  const recent=[...rows].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id).slice(0,6);
+  const pessoas=await pessoasAll();
+  const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
+  let dashRows=rows;
+  if(pessoaFilter)dashRows=rows.filter(t=>t.pessoaId===pessoaFilter);
+  dashRows=dashRows.map(t=>({...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null}));
+  const recent=[...dashRows].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id).slice(0,6);
+  // pessoa summary card
+  const pessoaSummaryEl=document.getElementById('pessoa-summary');
+  const pessoaSummaryCard=document.getElementById('pessoa-summary-card');
+  if(pessoaSummaryEl&&pessoas.length>1){
+    const summaryHtml=pessoas.map(p=>{
+      const pRows=rows.filter(t=>t.pessoaId===p.id);
+      const pInc=pRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
+      const pExp=pRows.filter(t=>t.type!=='income').reduce((s,t)=>s+t.value,0);
+      const pBal=pInc-pExp;
+      return`<div style='display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)'>
+        ${personAvatarHtml(p,28)}
+        <div style='flex:1'><div style='font-size:13px;font-weight:500'>${p.nome}</div><div style='font-size:11px;color:var(--text3)'>${fmt(pInc)} entrada · ${fmt(pExp)} saída</div></div>
+        <div style='font-family:var(--mono);font-size:13px;font-weight:600;color:${pBal>=0?'var(--green)':'var(--red)'}'>${pBal>=0?'+':'-'}${fmt(pBal)}</div>
+      </div>`;
+    }).join('');
+    pessoaSummaryEl.innerHTML=summaryHtml;
+    if(pessoaSummaryCard)pessoaSummaryCard.style.display='block';
+  }else{
+    if(pessoaSummaryCard)pessoaSummaryCard.style.display='none';
+  }
   document.getElementById('recent-list').innerHTML=recent.length
     ?recent.map(txCard).join('')
     :`<div class="empty"><div class="empty-icon">📊</div>Nenhum lançamento em ${MONTHS[curMonth]}.<br>Toque em <strong>+ Novo</strong> para começar.</div>`;
@@ -1122,7 +1344,11 @@ function filterTx(f,btn){
 async function renderTx(){
   updateMonthLabels();
   const all=await dbAll();
-  const rows=all.filter(t=>t.year===curYear&&t.month===curMonth);
+  const pessoas=await pessoasAll();
+  const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
+  let rows=all.filter(t=>t.year===curYear&&t.month===curMonth);
+  if(pessoaFilter)rows=rows.filter(t=>t.pessoaId===pessoaFilter);
+  rows=rows.map(t=>({...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null}));
   const filtered=txFilter==='all'?rows:rows.filter(t=>t.type===txFilter);
   const sorted=[...filtered].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id);
   document.getElementById('tx-list').innerHTML=sorted.length
@@ -1225,6 +1451,10 @@ function showBudgetAddModal(item=null){
     </div>
 
     <div class="form-group">
+      <label>Responsável <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <div id="b-pessoa-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+    </div>
+    <div class="form-group">
       <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
       <textarea id="b-obs" placeholder="Detalhes...">${isEdit?item.obs||'':''}</textarea>
     </div>
@@ -1233,6 +1463,7 @@ function showBudgetAddModal(item=null){
       <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
     </div>
   `);
+  setTimeout(()=>renderPessoaChips('b-pessoa-chips',isEdit?item.pessoaId||null:null),50);
   setTimeout(()=>{
     if(isEdit&&item.subitems?.length){
       item.subitems.forEach(s=>addSubitem('budget',s.name,s.value));
@@ -1376,7 +1607,10 @@ async function renderBudget(){
   document.getElementById('budget-progress-fill').style.width=pct+'%';
   document.getElementById('budget-progress-fill').style.background=pct<50?'var(--amber)':pct<100?'var(--blue)':'var(--green)';
   document.getElementById('budget-summary-text').textContent=`${doneIds.size} de ${items.length} realizados · ${fmt(doneTotal)} de ${fmt(total)} (${pct}%)`;
-  const sorted=[...items].sort((a,b)=>{
+  const pessoasBud=await pessoasAll();
+  const pessoaMapBud=Object.fromEntries(pessoasBud.map(p=>[p.id,p]));
+  const enrichedItems=items.map(i=>({...i,_pessoa:i.pessoaId?pessoaMapBud[i.pessoaId]:null}));
+  const sorted=[...enrichedItems].sort((a,b)=>{
     const ad=doneIds.has(a.id)?1:0,bd=doneIds.has(b.id)?1:0;
     if(ad!==bd)return ad-bd;
     return(a.dueDay||99)-(b.dueDay||99);
@@ -1392,6 +1626,7 @@ async function renderBudget(){
           ${CAT_LABELS[item.type]||''}
           ${item.dueDay?` · Venc. dia ${item.dueDay}`:''}
           ${done?` · <span style="color:var(--green)">✅ Realizado</span>`:''}
+          ${item._pessoa?` · ${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}`:''}
         </div>
         ${renderSubitemsHtml(item.subitems)}
         ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
@@ -1411,6 +1646,7 @@ async function renderBudget(){
 function renderCfg(){
   const tog=document.getElementById('toggle-dark');
   if(tog)tog.checked=!document.body.classList.contains('light');
+  renderPessoasConfig();
 }
 
 /* ── RENDER ALL ── */
@@ -1430,6 +1666,7 @@ async function init(){
     applyTheme((localStorage.getItem('theme')||'dark')==='dark');
     db=await openDB();
     updateMonthLabels();
+    await renderPersonFilterBars();
     renderDash();
   }catch(err){
     document.body.innerHTML='<div style="padding:40px;text-align:center;color:#f87171"><h2>Erro ao abrir banco</h2><p style="margin-top:10px;font-size:14px">'+err.message+'</p></div>';

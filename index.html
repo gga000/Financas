@@ -1134,7 +1134,7 @@ async function saveEntry(){
     if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return}
     let m=month,y=year,d=date;
     for(let i=pnum-1;i<ptotal;i++){
-      await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,groupId,createdAt:Date.now()});
+      await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,createdAt:Date.now()});
       if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
     }
     toast(`${ptotal-pnum+1} parcela(s) salva(s)!`,'var(--purple)');
@@ -1142,7 +1142,7 @@ async function saveEntry(){
     const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
-      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,groupId,recurring:true,createdAt:Date.now()});
+      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,recurring:true,createdAt:Date.now()});
       if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
     }
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
@@ -1285,7 +1285,15 @@ function txCard(t){
 async function renderDash(){
   updateMonthLabels();
   const all=await dbAll();
-  const{income,expense,balance,rows}=calcMonth(all,curYear,curMonth);
+  const pessoas=await pessoasAll();
+  const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
+  // Apply pessoa filter to ALL calculations if active
+  const{rows:allRows}=calcMonth(all,curYear,curMonth);
+  const filteredRows=pessoaFilter?allRows.filter(t=>t.pessoaId===pessoaFilter):allRows;
+  const income=filteredRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
+  const expense=filteredRows.filter(t=>t.type!=='income').reduce((s,t)=>s+t.value,0);
+  const balance=income-expense;
+  const rows=filteredRows;
   const fixed=rows.filter(t=>t.type==='fixed').reduce((s,t)=>s+t.value,0);
   const variable=rows.filter(t=>t.type==='variable').reduce((s,t)=>s+t.value,0);
   const credit=rows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
@@ -1304,18 +1312,14 @@ async function renderDash(){
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
     <div class="prog-labels"><span>${pct}% comprometido</span><span style="color:${barColor};font-weight:500">${pct<60?'✓ Saudável':pct<85?'⚠ Atenção':'✗ Alto'}</span></div>
   `;
-  const pessoas=await pessoasAll();
-  const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
-  let dashRows=rows;
-  if(pessoaFilter)dashRows=rows.filter(t=>t.pessoaId===pessoaFilter);
-  dashRows=dashRows.map(t=>({...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null}));
-  const recent=[...dashRows].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id).slice(0,6);
+  const enrichedRows=rows.map(t=>({...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null}));
+  const recent=[...enrichedRows].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id).slice(0,6);
   // pessoa summary card
   const pessoaSummaryEl=document.getElementById('pessoa-summary');
   const pessoaSummaryCard=document.getElementById('pessoa-summary-card');
   if(pessoaSummaryEl&&pessoas.length>1){
     const summaryHtml=pessoas.map(p=>{
-      const pRows=rows.filter(t=>t.pessoaId===p.id);
+      const pRows=allRows.filter(t=>t.pessoaId===p.id);
       const pInc=pRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
       const pExp=pRows.filter(t=>t.type!=='income').reduce((s,t)=>s+t.value,0);
       const pBal=pInc-pExp;

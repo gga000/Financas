@@ -108,8 +108,8 @@ body{min-height:100vh;padding-bottom:76px}
 .tx-icon.credit{background:var(--purple-bg);border:1px solid var(--purple-border)}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.tx-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;row-gap:4px}
-.tx-meta .badge, .tx-meta .person-tag{flex-shrink:0;align-self:flex-start}
+.tx-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.tx-meta span, .tx-meta .badge, .tx-meta .person-tag{flex-shrink:0;align-self:flex-start}
 .tx-obs{font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5;word-break:break-word}
 .tx-right{text-align:right;flex-shrink:0}
 .tx-val{font-size:14px;font-weight:600;font-family:var(--mono)}
@@ -190,8 +190,8 @@ select option{background:var(--bg3)}
 .budget-check.checked{background:var(--green);border-color:var(--green);color:#000}
 .budget-info{flex:1;min-width:0}
 .budget-name{font-size:14px;font-weight:500;color:var(--text)}
-.budget-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;row-gap:4px}
-.budget-meta .badge, .budget-meta .person-tag{flex-shrink:0;align-self:flex-start}
+.budget-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.budget-meta span, .budget-meta .person-tag{flex-shrink:0;align-self:flex-start}
 .budget-right{text-align:right;flex-shrink:0}
 .budget-val{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text2)}
 .budget-actions{display:flex;gap:8px;margin-top:3px;justify-content:flex-end}
@@ -1327,10 +1327,10 @@ function txCard(t){
     <div class="tx-info">
       <div class="tx-name">${t.name}</div>
       <div class="tx-meta">
-        <span style="white-space:nowrap">${CAT_LABELS[t.type]||''}</span>
+        <span>${CAT_LABELS[t.type]||''}</span>
         ${t.recurring||t.groupId?'<span class="badge badge-blue">série</span>':''}
-        ${t.date?`<span style="white-space:nowrap">📅 Venc. ${fmtDate(t.date)}</span>`:''}
-        ${t.paidDate?`<span style="color:var(--green);white-space:nowrap">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
+        ${t.date?`<span>📅 Venc. ${fmtDate(t.date)}</span>`:''}
+        ${t.paidDate?`<span style="color:var(--green)">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
         ${t._pessoa?`<span class="person-tag">${personAvatarHtml(t._pessoa,14)} ${t._pessoa.nome}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
@@ -1703,8 +1703,6 @@ async function renderBudget(){
   const doneIncome=incomeItems.filter(i=>doneIds.has(i.id)).reduce((s,i)=>s+i.value,0);
   const doneExpense=expenseItems.filter(i=>doneIds.has(i.id)).reduce((s,i)=>s+i.value,0);
   const doneCount=doneIds.size;
-  const pctInc=totalIncome>0?Math.round(doneIncome/totalIncome*100):0;
-  const pctExp=totalExpense>0?Math.round(doneExpense/totalExpense*100):0;
   const pctAll=items.length>0?Math.round(doneCount/items.length*100):0;
   document.getElementById('budget-summary-card').style.display='block';
   document.getElementById('budget-progress-fill').style.width=pctAll+'%';
@@ -1731,9 +1729,9 @@ async function renderBudget(){
       <div class="budget-info">
         <div class="budget-name">${item.name}</div>
         <div class="budget-meta">
-          <span style="white-space:nowrap">${CAT_LABELS[item.type]||''}</span>
-          ${item.dueDay?`<span style="white-space:nowrap">📅 Dia ${item.dueDay}</span>`:''}
-          ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
+          <span>${CAT_LABELS[item.type]||''}</span>
+          ${item.dueDay?`<span>📅 Dia ${item.dueDay}</span>`:''}
+          ${done?'<span style="color:var(--green)">✅ Realizado</span>':''}
           ${item._pessoa?`<span class="person-tag">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
         </div>
         ${renderSubitemsHtml(item.subitems)}
@@ -1783,4 +1781,4 @@ async function init(){
 init();
 </script>
 </body>
-</html>
+          </html>

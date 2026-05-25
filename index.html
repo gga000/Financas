@@ -108,7 +108,7 @@ body{min-height:100vh;padding-bottom:76px}
 .tx-icon.credit{background:var(--purple-bg);border:1px solid var(--purple-border)}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.tx-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center}
+.tx-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-direction:column;gap:3px}
 .tx-obs{font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5;word-break:break-word}
 .tx-right{text-align:right;flex-shrink:0}
 .tx-val{font-size:14px;font-weight:600;font-family:var(--mono)}
@@ -187,9 +187,9 @@ select option{background:var(--bg3)}
 .budget-item.done .budget-name{text-decoration:line-through}
 .budget-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s;font-size:13px}
 .budget-check.checked{background:var(--green);border-color:var(--green);color:#000}
-.budget-info{flex:1;min-width:0;overflow:hidden}
+.budget-info{flex:1;min-width:0}
 .budget-name{font-size:14px;font-weight:500;color:var(--text)}
-.budget-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center}
+.budget-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-direction:column;gap:3px}
 .budget-right{text-align:right;flex-shrink:0}
 .budget-val{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text2)}
 .budget-actions{display:flex;gap:8px;margin-top:3px;justify-content:flex-end}
@@ -812,7 +812,8 @@ async function exportData(){
   const buds=await budgetAll();
   if(!all.length&&!buds.length){toast('Nenhum dado para exportar','var(--amber)');return}
   const pessoas=await pessoasAll();
-  const json=JSON.stringify({version:3,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas},null,2);
+  const budgetDoneAll=await new Promise(res=>{const t=db.transaction('budgetDone','readonly');t.objectStore('budgetDone').getAll().onsuccess=e=>res(e.target.result||[])});
+  const json=JSON.stringify({version:4,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,budgetDone:budgetDoneAll},null,2);
   const blob=new Blob([json],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -851,12 +852,32 @@ function importData(e){
         if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
         await dbAdd(rest);count++;
       }
-      // Import budget items, remapping pessoaId
+      // Import budget items, remapping pessoaId, build budgetIdMap
+      const budgetIdMap={};
       for(const item of budgetItems){
-        const{id,...rest}=item;
+        const{id:oldBudgetId,...rest}=item;
         if(!rest.name||!rest.value||!rest.type)continue;
         if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
-        await budgetAdd(rest);count++;
+        const newBudgetId=await budgetAdd(rest);
+        if(oldBudgetId&&newBudgetId)budgetIdMap[oldBudgetId]=newBudgetId;
+        count++;
+      }
+      // Import budgetDone marks, remapping budgetId->newBudgetId and txId (skip, will be orphan)
+      const budgetDoneItems=obj.budgetDone||[];
+      for(const item of budgetDoneItems){
+        if(!item.key||!item.budgetId)continue;
+        // Only import if budgetId was remapped (budget item was imported)
+        const newBudgetId=budgetIdMap[item.budgetId];
+        if(!newBudgetId)continue;
+        // Rebuild key with new budgetId
+        const keyParts=item.key.split('_');
+        const yyyymm=keyParts.slice(1).join('_');
+        const newKey=newBudgetId+'_'+yyyymm;
+        await new Promise(res=>{
+          const t=db.transaction('budgetDone','readwrite');
+          t.objectStore('budgetDone').put({key:newKey,budgetId:newBudgetId,txId:null,doneAt:item.doneAt||Date.now()}).onsuccess=()=>res();
+        });
+        count++;
       }
       toast(`${count} registros importados!`,'var(--green)');
       renderAll();renderBudget();renderPersonFilterBars();renderPessoasConfig();
@@ -1622,6 +1643,7 @@ async function toggleBudgetDone(budgetId){
     const txId=await dbAdd({
       name:item.name,
       value:item.value,
+      rawExpr:item.rawExpr||null,
       subitems:item.subitems||[],
       type:item.type,
       month:budgetMonth,

@@ -1109,7 +1109,7 @@ function showEditModal(id){dbAll().then(all=>{
       if(prev&&!isNaN(r)){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
     }
     if(t.subitems?.length){
-      t.subitems.forEach(s=>addSubitem('tx',s.name,s.value));
+      t.subitems.forEach(s=>addSubitem(s.name,s.value));
       updateSubitemsTotal();
     }
     renderPessoaChips('f-pessoa-chips',t.pessoaId||null);
@@ -1117,8 +1117,7 @@ function showEditModal(id){dbAll().then(all=>{
 })}
 
 
-function addSubitem(mode='tx',name='',value=''){
-  if(typeof mode!=='string'){value=name;name=mode;mode='tx';}
+function addSubitem(name='',value=''){
   // pick the correct container based on which modal is open
   const area=document.getElementById('modal-b-subitems-area')||document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
   if(!area)return;
@@ -1513,7 +1512,7 @@ function showBudgetAddModal(item=null){
     <div class="form-group">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <label style="margin:0">Subitens</label>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="addSubitem('budget')">+ Subitem</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addSubitem()">+ Subitem</button>
       </div>
       <div id="modal-b-subitems-area"></div>
       <div class="hint">O valor total será calculado automaticamente pelos subitens</div>

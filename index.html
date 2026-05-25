@@ -744,6 +744,7 @@ async function savePessoaEdit(id){
 async function deletePessoa(id){
   if(!confirm('Remover esta pessoa? Os lançamentos associados não serão apagados.'))return;
   await pessoasDel(id);
+  if(pessoaFilter===id)pessoaFilter=null;
   toast('Pessoa removida','var(--red)');
   renderPessoasConfig();renderPersonFilterBars();renderAll();
 }
@@ -810,7 +811,8 @@ async function exportData(){
   const all=await dbAll();
   const buds=await budgetAll();
   if(!all.length&&!buds.length){toast('Nenhum dado para exportar','var(--amber)');return}
-  const json=JSON.stringify({version:2,exportedAt:new Date().toISOString(),data:all,budget:buds},null,2);
+  const pessoas=await pessoasAll();
+  const json=JSON.stringify({version:3,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas},null,2);
   const blob=new Blob([json],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -827,7 +829,10 @@ function importData(e){
       const obj=JSON.parse(ev.target.result);
       const items=obj.data||obj;
       if(!Array.isArray(items)){toast('Arquivo inválido','var(--red)');return}
-      if(!confirm(`Importar ${items.length} lançamentos?`))return;
+      const budgetItems=obj.budget||[];
+      const pessoaItems=obj.pessoas||[];
+      const total=items.length+(budgetItems.length||0)+(pessoaItems.length||0);
+      if(!confirm(`Importar ${total} registros? Os dados atuais serão mantidos.`))return;
       let count=0;
       for(const item of items){
         const{id,...rest}=item;
@@ -835,14 +840,31 @@ function importData(e){
         if(!rest.ym)rest.ym=ym(rest.year,rest.month);
         await dbAdd(rest);count++;
       }
-      toast(`${count} lançamentos importados!`,'var(--green)');renderAll();
-    }catch{toast('Erro ao ler arquivo','var(--red)')}
+      for(const item of budgetItems){
+        const{id,...rest}=item;
+        if(!rest.name||!rest.value||!rest.type)continue;
+        await budgetAdd(rest);count++;
+      }
+      for(const item of pessoaItems){
+        const{id,...rest}=item;
+        if(!rest.nome||!rest.color)continue;
+        await pessoasAdd(rest);count++;
+      }
+      toast(`${count} registros importados!`,'var(--green)');
+      renderAll();renderBudget();renderPersonFilterBars();
+    }catch(e){console.error(e);toast('Erro ao ler arquivo','var(--red)')}
   };
   reader.readAsText(file);e.target.value='';
 }
 async function clearAll(){
-  if(!confirm('Apagar TODOS os lançamentos? Esta ação não pode ser desfeita.'))return;
-  await dbClear();toast('Todos os dados apagados','var(--red)');renderAll();
+  if(!confirm('Apagar TODOS os dados? (Lançamentos, orçamento e pessoas)\nEsta ação não pode ser desfeita.'))return;
+  await dbClear();
+  // clear budget, budgetDone
+  await new Promise(res=>{const t=db.transaction('budget','readwrite');t.objectStore('budget').clear().onsuccess=()=>res()});
+  await new Promise(res=>{const t=db.transaction('budgetDone','readwrite');t.objectStore('budgetDone').clear().onsuccess=()=>res()});
+  toast('Todos os dados apagados','var(--red)');
+  renderAll();
+  renderBudget();
 }
 
 /* ── NAV ── */
@@ -1058,7 +1080,8 @@ function showEditModal(id){dbAll().then(all=>{
 
 function addSubitem(mode='tx',name='',value=''){
   if(typeof mode!=='string'){value=name;name=mode;mode='tx';}
-  const area=document.getElementById('subitems-area');
+  // pick the correct container based on which modal is open
+  const area=document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
   if(!area)return;
   const row=document.createElement('div');
   row.className='subitem-row';
@@ -1072,7 +1095,10 @@ function addSubitem(mode='tx',name='',value=''){
 }
 
 function getSubitems(){
-  return [...document.querySelectorAll('.subitem-row')].map(r=>{
+  // query only from visible modal
+  const area=document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
+  const rows=area?[...area.querySelectorAll('.subitem-row')]:[...document.querySelectorAll('.subitem-row')];
+  return rows.map(r=>{
     const name=r.querySelector('.sub-name').value.trim();
     const value=parseFloat(r.querySelector('.sub-value').value)||0;
     return name&&value>0?{name,value}:null;
@@ -1135,7 +1161,7 @@ async function saveEntry(){
     let m=month,y=year,d=date;
     for(let i=pnum-1;i<ptotal;i++){
       await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,createdAt:Date.now()});
-      if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
+      if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
     }
     toast(`${ptotal-pnum+1} parcela(s) salva(s)!`,'var(--purple)');
   } else if(document.getElementById('f-recur')?.value==='monthly'){
@@ -1143,7 +1169,7 @@ async function saveEntry(){
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
       await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,recurring:true,createdAt:Date.now()});
-      if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
+      if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
     }
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
   } else {
@@ -1176,7 +1202,7 @@ async function updateEntry(id){
     let m=month,y=year,d=date;
     for(let i=0;i<count;i++){
       await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId:newGroupId,recurring:true,createdAt:Date.now()});
-      if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
+      if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
     }
     toast(`Série de ${count} meses criada!`,'var(--teal)');
     closeModal();renderAll();
@@ -1194,7 +1220,7 @@ async function updateEntry(id){
           let m=month,y=year,d=date;
           for(const x of toUpdate){
             await dbPut({...x,name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId});
-            if(d)d=addMonths(d,1)||d;m++;if(m>11){m=0;y++}
+            if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
           }
           toast('Série atualizada!','var(--green)');renderAll();
         }},
@@ -1450,7 +1476,7 @@ function showBudgetAddModal(item=null){
         <label style="margin:0">Subitens</label>
         <button type="button" class="btn btn-ghost btn-sm" onclick="addSubitem('budget')">+ Subitem</button>
       </div>
-      <div id="subitems-area"></div>
+      <div id="b-subitems-area"></div>
       <div class="hint">O valor total será calculado automaticamente pelos subitens</div>
     </div>
 
@@ -1470,7 +1496,7 @@ function showBudgetAddModal(item=null){
   setTimeout(()=>renderPessoaChips('b-pessoa-chips',isEdit?item.pessoaId||null:null),50);
   setTimeout(()=>{
     if(isEdit&&item.subitems?.length){
-      item.subitems.forEach(s=>addSubitem('budget',s.name,s.value));
+      item.subitems.forEach(s=>addSubitem(s.name,s.value));
     }
   },50);
 }
@@ -1585,13 +1611,16 @@ async function toggleBudgetDone(budgetId){
 }
 
 async function deleteBudgetItem(id){
-  if(!confirm('Remover este item do orçamento?'))return;
+  if(!confirm('Remover este item do orçamento? Os lançamentos já realizados serão mantidos.'))return;
   await budgetDel(id);
-  const t=db.transaction('budgetDone','readwrite');
-  const store=t.objectStore('budgetDone');
-  store.getAll().onsuccess=e=>{
-    (e.target.result||[]).filter(r=>r.budgetId===id).forEach(r=>store.delete(r.key));
-  };
+  await new Promise(res=>{
+    const t=db.transaction('budgetDone','readwrite');
+    const store=t.objectStore('budgetDone');
+    store.getAll().onsuccess=e=>{
+      (e.target.result||[]).filter(r=>r.budgetId===id).forEach(r=>store.delete(r.key));
+      res();
+    };
+  });
   toast('Item removido','var(--red)');renderBudget();
 }
 

@@ -108,7 +108,8 @@ body{min-height:100vh;padding-bottom:76px}
 .tx-icon.credit{background:var(--purple-bg);border:1px solid var(--purple-border)}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.tx-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-direction:column;gap:3px}
+.tx-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;row-gap:4px}
+.tx-meta .badge, .tx-meta .person-tag{flex-shrink:0;align-self:flex-start}
 .tx-obs{font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5;word-break:break-word}
 .tx-right{text-align:right;flex-shrink:0}
 .tx-val{font-size:14px;font-weight:600;font-family:var(--mono)}
@@ -189,12 +190,17 @@ select option{background:var(--bg3)}
 .budget-check.checked{background:var(--green);border-color:var(--green);color:#000}
 .budget-info{flex:1;min-width:0}
 .budget-name{font-size:14px;font-weight:500;color:var(--text)}
-.budget-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-direction:column;gap:3px}
+.budget-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;row-gap:4px}
+.budget-meta .badge, .budget-meta .person-tag{flex-shrink:0;align-self:flex-start}
 .budget-right{text-align:right;flex-shrink:0}
 .budget-val{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text2)}
 .budget-actions{display:flex;gap:8px;margin-top:3px;justify-content:flex-end}
 .budget-progress{background:var(--bg4);border-radius:3px;height:4px;overflow:hidden;margin-bottom:10px}
 .budget-progress-fill{height:100%;border-radius:3px;background:var(--green);transition:width .4s}
+
+/* BUDGET SUMMARY (vertical layout) */
+#budget-summary-text{display:flex;flex-direction:column;align-items:flex-start;gap:8px;font-size:12px}
+#budget-summary-text > div{width:100%}
 
 
 .tx-subtoggle{font-size:11px;color:var(--blue);margin-top:6px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
@@ -383,7 +389,7 @@ select option{background:var(--bg3)}
   </div>
   <div class="card" id="budget-summary-card" style="display:none">
     <div id="budget-progress" class="budget-progress"><div id="budget-progress-fill" class="budget-progress-fill" style="width:0%"></div></div>
-    <div id="budget-summary-text" style="font-size:12px;margin-top:4px"></div>
+    <div id="budget-summary-text"></div>
   </div>
   <div id="budget-list"></div>
 </div>
@@ -1322,10 +1328,10 @@ function txCard(t){
       <div class="tx-name">${t.name}</div>
       <div class="tx-meta">
         <span style="white-space:nowrap">${CAT_LABELS[t.type]||''}</span>
-        ${t.recurring||t.groupId?'<span class="badge badge-blue" style="white-space:nowrap">série</span>':''}
+        ${t.recurring||t.groupId?'<span class="badge badge-blue">série</span>':''}
         ${t.date?`<span style="white-space:nowrap">📅 Venc. ${fmtDate(t.date)}</span>`:''}
         ${t.paidDate?`<span style="color:var(--green);white-space:nowrap">✅ Pago ${fmtDate(t.paidDate)}</span>`:''}
-        ${t._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(t._pessoa,14)} ${t._pessoa.nome}</span>`:''}
+        ${t._pessoa?`<span class="person-tag">${personAvatarHtml(t._pessoa,14)} ${t._pessoa.nome}</span>`:''}
       </div>
       ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
       ${renderSubitemsHtml(t.subitems)}
@@ -1703,12 +1709,12 @@ async function renderBudget(){
   document.getElementById('budget-summary-card').style.display='block';
   document.getElementById('budget-progress-fill').style.width=pctAll+'%';
   document.getElementById('budget-progress-fill').style.background=pctAll<50?'var(--amber)':pctAll<100?'var(--blue)':'var(--green)';
-  document.getElementById('budget-summary-text').innerHTML=
-    `<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-      <span style="color:var(--text2)">${doneCount}/${items.length} realizados</span>
-      <span style="color:var(--green)">💵 ${fmt(doneIncome)} <span style="color:var(--text3)">/ ${fmt(totalIncome)}</span></span>
-      <span style="color:var(--red)">📤 ${fmt(doneExpense)} <span style="color:var(--text3)">/ ${fmt(totalExpense)}</span></span>
-    </div>`;
+  const summaryDiv=document.getElementById('budget-summary-text');
+  summaryDiv.innerHTML=`
+    <div><span style="color:var(--text2)">${doneCount}/${items.length} realizados</span></div>
+    <div><span style="color:var(--green)">💵 ${fmt(doneIncome)}</span> <span style="color:var(--text3)">/ ${fmt(totalIncome)}</span></div>
+    <div><span style="color:var(--red)">📤 ${fmt(doneExpense)}</span> <span style="color:var(--text3)">/ ${fmt(totalExpense)}</span></div>
+  `;
   const pessoasBud=await pessoasAll();
   const pessoaMapBud=Object.fromEntries(pessoasBud.map(p=>[p.id,p]));
   const enrichedItems=items.map(i=>({...i,_pessoa:i.pessoaId?pessoaMapBud[i.pessoaId]:null}));
@@ -1728,7 +1734,7 @@ async function renderBudget(){
           <span style="white-space:nowrap">${CAT_LABELS[item.type]||''}</span>
           ${item.dueDay?`<span style="white-space:nowrap">📅 Dia ${item.dueDay}</span>`:''}
           ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
-          ${item._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
+          ${item._pessoa?`<span class="person-tag">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
         </div>
         ${renderSubitemsHtml(item.subitems)}
         ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}

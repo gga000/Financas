@@ -108,7 +108,7 @@ body{min-height:100vh;padding-bottom:76px}
 .tx-icon.credit{background:var(--purple-bg);border:1px solid var(--purple-border)}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.tx-meta{font-size:11px;color:var(--text3);margin-top:3px;display:flex;flex-direction:row;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.tx-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center}
 .tx-obs{font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5;word-break:break-word}
 .tx-right{text-align:right;flex-shrink:0}
 .tx-val{font-size:14px;font-weight:600;font-family:var(--mono)}
@@ -187,9 +187,9 @@ select option{background:var(--bg3)}
 .budget-item.done .budget-name{text-decoration:line-through}
 .budget-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s;font-size:13px}
 .budget-check.checked{background:var(--green);border-color:var(--green);color:#000}
-.budget-info{flex:1;min-width:0}
+.budget-info{flex:1;min-width:0;overflow:hidden}
 .budget-name{font-size:14px;font-weight:500;color:var(--text)}
-.budget-meta{font-size:11px;color:var(--text3);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.budget-meta{font-size:11px;color:var(--text3);margin-top:4px;width:100%;display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center}
 .budget-right{text-align:right;flex-shrink:0}
 .budget-val{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text2)}
 .budget-actions{display:flex;gap:8px;margin-top:3px;justify-content:flex-end}
@@ -834,24 +834,32 @@ function importData(e){
       const total=items.length+(budgetItems.length||0)+(pessoaItems.length||0);
       if(!confirm(`Importar ${total} registros? Os dados atuais serão mantidos.`))return;
       let count=0;
+      // Import pessoas first, build oldId->newId map for remapping
+      const pessoaIdMap={};
+      for(const item of pessoaItems){
+        const{id:oldId,...rest}=item;
+        if(!rest.nome||!rest.color)continue;
+        const newId=await pessoasAdd(rest);
+        if(oldId&&newId)pessoaIdMap[oldId]=newId;
+        count++;
+      }
+      // Import tx items, remapping pessoaId
       for(const item of items){
         const{id,...rest}=item;
         if(!rest.name||!rest.value||!rest.type)continue;
         if(!rest.ym)rest.ym=ym(rest.year,rest.month);
+        if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
         await dbAdd(rest);count++;
       }
+      // Import budget items, remapping pessoaId
       for(const item of budgetItems){
         const{id,...rest}=item;
         if(!rest.name||!rest.value||!rest.type)continue;
+        if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
         await budgetAdd(rest);count++;
       }
-      for(const item of pessoaItems){
-        const{id,...rest}=item;
-        if(!rest.nome||!rest.color)continue;
-        await pessoasAdd(rest);count++;
-      }
       toast(`${count} registros importados!`,'var(--green)');
-      renderAll();renderBudget();renderPersonFilterBars();
+      renderAll();renderBudget();renderPersonFilterBars();renderPessoasConfig();
     }catch(e){console.error(e);toast('Erro ao ler arquivo','var(--red)')}
   };
   reader.readAsText(file);e.target.value='';
@@ -1549,6 +1557,13 @@ function getBudgetVal(){
   if(isNaN(val)){val=parseFloat(fieldVal.replace('.','').replace(',','.'));}
   return val;
 }
+function getBudgetRawExpr(){
+  const inp=document.getElementById('b-val');
+  const storedExpr=inp?.dataset?.rawExpr||'';
+  const fieldVal=(inp?.value||'').trim();
+  const expr=storedExpr||(hasOp(fieldVal)?fieldVal:'');
+  return expr||null;
+}
 function onBudgetValInput(){
   const inp=document.getElementById('b-val');
   if(inp&&inp.dataset)inp.dataset.rawExpr='';
@@ -1567,7 +1582,8 @@ async function saveBudgetItem(){
   const obs=document.getElementById('b-obs').value.trim();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
   const bPessoaId=getSelectedPessoa('b-pessoa-chips');
-  await budgetAdd({name,value:val,type,dueDay,obs,subitems,pessoaId:bPessoaId,createdAt:Date.now()});
+  const bRawExpr=getBudgetRawExpr();
+  await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,pessoaId:bPessoaId,createdAt:Date.now()});
   toast('Item adicionado!','var(--teal)');closeModal();renderBudget();
 }
 
@@ -1583,7 +1599,8 @@ async function saveBudgetEdit(id){
   const existing=all.find(x=>x.id===id);
   if(!existing)return;
   const bPessoaId=getSelectedPessoa('b-pessoa-chips');
-  await budgetPut({...existing,name,value:val,type,dueDay,obs,subitems,pessoaId:bPessoaId});
+  const bRawExpr=getBudgetRawExpr();
+  await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,pessoaId:bPessoaId});
   toast('Item atualizado!','var(--teal)');closeModal();renderBudget();
 }
 

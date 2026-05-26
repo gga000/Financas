@@ -1855,8 +1855,8 @@ async function renderDash(){
     <div class="stat-card"><div class="stat-icon">💳</div><div class="stat-label">Cartão</div><div class="stat-value amber">${fmt(credit)}</div></div>
   `;
   document.getElementById('prog-area').innerHTML=`
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:2px">
-      <span>🏠 ${fmt(fixed)}</span><span>🛒 ${fmt(variable)}</span>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:2px;flex-wrap:wrap;gap:4px">
+      <span>🏠 ${fmt(fixed)}</span><span>🛒 ${fmt(variable)}</span><span>💳 ${fmt(credit)}</span>
     </div>
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
     <div class="prog-labels"><span>${pct}% comprometido</span><span style="color:${barColor};font-weight:500">${pct<60?'✓ Saudável':pct<85?'⚠ Atenção':'✗ Alto'}</span></div>
@@ -1875,7 +1875,7 @@ async function renderDash(){
       const pBal=pInc-pExp-pCred;
       return`<div style='display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)'>
         ${personAvatarHtml(p,28)}
-        <div style='flex:1'><div style='font-size:13px;font-weight:500'>${p.nome}</div><div style='font-size:11px;color:var(--text3)'>${fmt(pInc)} entrada · ${fmt(pExp)} saída</div></div>
+        <div style='flex:1'><div style='font-size:13px;font-weight:500'>${p.nome}</div><div style='font-size:11px;color:var(--text3)'>${fmt(pInc)} entrada · ${fmt(pExp+pCred)} saída</div></div>
         <div style='font-family:var(--mono);font-size:13px;font-weight:600;color:${pBal>=0?'var(--green)':'var(--red)'}'>${pBal>=0?'+':'-'}${fmt(pBal)}</div>
       </div>`;
     }).join('');

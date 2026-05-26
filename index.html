@@ -1047,7 +1047,18 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
       <button class="btn btn-primary" style="flex:1" onclick="${isEdit?'saveGastoEdit('+gasto.id+')':'saveGasto()'}">Salvar</button>
       <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
     </div>`);
-  setTimeout(()=>updateFaturaPreview(cartao),50);
+  setTimeout(()=>{
+    updateFaturaPreview(cartao);
+    if(isEdit&&gasto.rawExpr){
+      const inp=document.getElementById('cg-val');
+      if(inp){
+        inp.dataset.rawExpr=gasto.rawExpr;
+        const r=evalExpr(gasto.rawExpr);
+        const prev=document.getElementById('cg-val-preview');
+        if(prev&&!isNaN(r)){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
+      }
+    }
+  },50);
 }
 
 async function updateFaturaPreview(cartaoObj){
@@ -2092,6 +2103,80 @@ async function saveBudgetEdit(id){
   toast('Item atualizado!','var(--teal)');closeModal();renderBudget();
 }
 
+
+
+async function toggleBudgetDone(budgetId){
+  // Handle cartao virtual items (string ids like 'cartao_3')
+  if(typeof budgetId==='string'&&budgetId.startsWith('cartao_')){
+    const cartaoId=parseInt(budgetId.replace('cartao_',''));
+    const key=doneKey(budgetId,curYear,curMonth);
+    const existing=await doneGet(key);
+    if(existing){
+      if(existing.txId)await dbDel(existing.txId);
+      await doneDel(key);
+      toast('Marcação desfeita','var(--amber)');
+    }else{
+      const cartoes=await cartoesAll();
+      const cartao=cartoes.find(c=>c.id===cartaoId);
+      if(!cartao)return;
+      const gastosFatura=await getCartaoFaturaGastos(cartaoId,curMonth,curYear);
+      const total=gastosFatura.reduce((s,g)=>s+g.value,0);
+      const vencDate=getFaturaVencimento(curYear,curMonth,cartao);
+      const obsLines=gastosFatura.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+      const txId=await dbAdd({
+        name:'Fatura '+cartao.name,value:total,type:'credit',
+        month:curMonth,year:curYear,ym:ym(curYear,curMonth),
+        date:vencDate,obs:obsLines,pessoaId:cartao.pessoaId||null,
+        fromBudget:true,fromCartao:cartaoId,createdAt:Date.now()
+      });
+      await donePut({key,budgetId,txId,doneAt:Date.now()});
+      toast('Fatura lançada! ✅','var(--green)');
+    }
+    renderBudget();
+    return;
+  }
+  // Normal manual budget items
+  const id=typeof budgetId==='string'?parseInt(budgetId):budgetId;
+  const key=doneKey(id,curYear,curMonth);
+  const existing=await doneGet(key);
+  if(existing){
+    if(existing.txId)await dbDel(existing.txId);
+    await doneDel(key);
+    toast('Marcação desfeita','var(--amber)');
+  }else{
+    const buds=await budgetAll();
+    const item=buds.find(x=>x.id===id);
+    if(!item)return;
+    const day=item.dueDay||1;
+    const dateStr=curYear+'-'+String(curMonth+1).padStart(2,'0')+'-'+String(Math.min(day,28)).padStart(2,'0');
+    const txId=await dbAdd({
+      name:item.name,value:item.value,rawExpr:item.rawExpr||null,
+      subitems:item.subitems||[],type:item.type,
+      month:curMonth,year:curYear,ym:ym(curYear,curMonth),
+      date:dateStr,obs:item.obs||'',pessoaId:item.pessoaId||null,
+      fromBudget:true,createdAt:Date.now()
+    });
+    await donePut({key,budgetId:id,txId,doneAt:Date.now()});
+    toast('Lançamento registrado! ✅','var(--green)');
+  }
+  renderBudget();
+  const p=document.querySelector('.page.active');
+  if(p&&(p.id==='page-dash'||p.id==='page-tx'))renderAll();
+}
+
+async function deleteBudgetItem(id){
+  if(!confirm('Remover este item do orçamento? Os lançamentos já realizados serão mantidos.'))return;
+  await budgetDel(id);
+  await new Promise(res=>{
+    const t=db.transaction('budgetDone','readwrite');
+    const store=t.objectStore('budgetDone');
+    store.getAll().onsuccess=e=>{
+      (e.target.result||[]).filter(r=>r.budgetId===id).forEach(r=>store.delete(r.key));
+      res();
+    };
+  });
+  toast('Item removido','var(--red)');renderBudget();
+}
 
 /* ── BUDGET ── */
 async function renderBudget(){

@@ -2263,7 +2263,7 @@ async function renderBudget(){
           ${item._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
           ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
         </div>
-        ${item.subitems&&item.subitems.length?renderSubitemsHtml('budget-',item.id,item.subitems):''}
+        ${item.subitems&&item.subitems.length?renderSubitemsHtml(item.subitems):''}
       </div>
       <div class="budget-right">
         <div class="budget-val" style="${income?'color:var(--green)':'color:var(--text2)'}">

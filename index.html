@@ -669,8 +669,10 @@ function toast(msg,c){
 function calcMonth(all,y,m){
   const rows=all.filter(t=>t.year===y&&t.month===m);
   const income=rows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
-  const expense=rows.filter(t=>t.type!=='income').reduce((s,t)=>s+t.value,0);
-  return{income,expense,balance:income-expense,rows};
+  // credit shown separately in cartao card, excluded from expense to avoid double count
+  const expense=rows.filter(t=>t.type!=='income'&&t.type!=='credit').reduce((s,t)=>s+t.value,0);
+  const credit=rows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
+  return{income,expense,credit,balance:income-expense-credit,rows};
 }
 
 /* ── CONFIRM DIALOG ── */
@@ -1450,7 +1452,7 @@ function entryFormHtml(t=null){
           <option value="income"${defType==='income'?' selected':''}>💵 Receita</option>
           <option value="fixed"${defType==='fixed'?' selected':''}>🏠 Despesa Fixa</option>
           <option value="variable"${defType==='variable'?' selected':''}>🛒 Despesa Variável</option>
-
+          <option value="credit"${defType==='credit'?' selected':''}>💳 Fatura cartão</option>
         </select>
       </div>
       <div class="form-group">
@@ -1837,13 +1839,14 @@ async function renderDash(){
   const{rows:allRows}=calcMonth(all,curYear,curMonth);
   const filteredRows=pessoaFilter?allRows.filter(t=>t.pessoaId===pessoaFilter):allRows;
   const income=filteredRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
-  const expense=filteredRows.filter(t=>t.type!=='income').reduce((s,t)=>s+t.value,0);
-  const balance=income-expense;
+  const expense=filteredRows.filter(t=>t.type!=='income'&&t.type!=='credit').reduce((s,t)=>s+t.value,0);
+  const credit=filteredRows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
+  const balance=income-expense-credit;
   const rows=filteredRows;
   const fixed=rows.filter(t=>t.type==='fixed').reduce((s,t)=>s+t.value,0);
   const variable=rows.filter(t=>t.type==='variable').reduce((s,t)=>s+t.value,0);
-  const credit=rows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
-  const pct=income>0?Math.min(100,Math.round(expense/income*100)):0;
+  const totalOut=expense+credit;
+  const pct=income>0?Math.min(100,Math.round(totalOut/income*100)):0;
   const barColor=pct<60?'var(--green)':pct<85?'var(--amber)':'var(--red)';
   document.getElementById('summary-cards').innerHTML=`
     <div class="stat-card"><div class="stat-icon">💵</div><div class="stat-label">Receitas</div><div class="stat-value green">${fmt(income)}</div></div>
@@ -1867,8 +1870,9 @@ async function renderDash(){
     const summaryHtml=pessoas.map(p=>{
       const pRows=allRows.filter(t=>t.pessoaId===p.id);
       const pInc=pRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
-      const pExp=pRows.filter(t=>t.type!=='income').reduce((s,t)=>s+t.value,0);
-      const pBal=pInc-pExp;
+      const pExp=pRows.filter(t=>t.type!=='income'&&t.type!=='credit').reduce((s,t)=>s+t.value,0);
+      const pCred=pRows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
+      const pBal=pInc-pExp-pCred;
       return`<div style='display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)'>
         ${personAvatarHtml(p,28)}
         <div style='flex:1'><div style='font-size:13px;font-weight:500'>${p.nome}</div><div style='font-size:11px;color:var(--text3)'>${fmt(pInc)} entrada · ${fmt(pExp)} saída</div></div>

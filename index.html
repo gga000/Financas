@@ -1222,42 +1222,45 @@ async function refreshBudgetCartoes(){
   if(p&&p.id==='page-budget')renderBudget();
 }
 
-async function getCartaoBudgetItems(){
-  // Returns virtual budget items from cartoes (one per cartao, current fatura)
-  const cartoes=await cartoesAll();
-  const allGastos=await gastosAll();
-  const result=[];
+async function getCartaoBudgetItems(targetMonth, targetYear){
+  const tm = (targetMonth !== undefined) ? targetMonth : curMonth;
+  const ty = (targetYear !== undefined) ? targetYear : curYear;
+  const cartoes = await cartoesAll();
+  const allGastos = await gastosAll();
+  const pessoas = await pessoasAll();
+  const pessoaMap = Object.fromEntries(pessoas.map(p=>[p.id,p]));
+  const result = [];
   for(const cartao of cartoes){
-    const fatura=getCurrentFatura(cartao);
-    const gastosFatura=allGastos.filter(g=>{
-      if(g.cartaoId!==cartao.id)return false;
-      const fm=getFaturaMonth(g.date,cartao);
-      return fm&&fm.month===fatura.month&&fm.year===fatura.year;
+    // Get gastos whose fatura period is tm/ty
+    const gastosFatura = allGastos.filter(g=>{
+      if(g.cartaoId !== cartao.id) return false;
+      const fm = getFaturaMonth(g.date, cartao);
+      return fm && fm.month === tm && fm.year === ty;
     });
-    const total=gastosFatura.reduce((s,g)=>s+g.value,0);
-    const vencDate=getFaturaVencimento(fatura.year,fatura.month,cartao);
-    // obs = list of gasto names
-    const obsLines=gastosFatura.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+    const total = gastosFatura.reduce((s,g)=>s+g.value, 0);
+    const vencDate = getFaturaVencimento(ty, tm, cartao);
+    const obsLines = gastosFatura.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+    const pessoa = cartao.pessoaId ? pessoaMap[cartao.pessoaId] : null;
     result.push({
-      _isCartao:true,
-      _cartaoId:cartao.id,
-      _cartao:cartao,
-      _gastos:gastosFatura,
-      id:'cartao_'+cartao.id,
-      name:cartao.name,
-      value:total,
-      type:'credit',
-      dueDay:cartao.vencimento,
-      dueDate:vencDate,
-      obs:obsLines,
-      pessoaId:cartao.pessoaId,
-      faturaMonth:tm,
-      faturaYear:ty,
+      _isCartao: true,
+      _cartaoId: cartao.id,
+      _cartao: cartao,
+      _gastos: gastosFatura,
+      _pessoa: pessoa,
+      id: 'cartao_'+cartao.id,
+      name: cartao.name,
+      value: total,
+      type: 'credit',
+      dueDay: cartao.vencimento,
+      dueDate: vencDate,
+      obs: obsLines,
+      pessoaId: cartao.pessoaId,
+      faturaMonth: tm,
+      faturaYear: ty,
     });
   }
-  return result;
+  return result.filter(r=>r.value>0);
 }
-
 /* ── EXPORT / IMPORT ── */
 async function exportData(){
   const all=await dbAll();

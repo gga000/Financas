@@ -2180,12 +2180,14 @@ async function deleteBudgetItem(id){
 
 /* ── BUDGET ── */
 async function renderBudget(){
+  try{
   const manualItems=await budgetAll();
-  // Add cartao virtual items for the budget month
-  const cartaoVirtualItems=await getCartaoBudgetItems();
-  const cartaoForMonth=cartaoVirtualItems.filter(ci=>{
-    return ci.faturaMonth===curMonth&&ci.faturaYear===curYear;
-  });
+  // Add cartao virtual items safely (cartoes store may not exist yet)
+  let cartaoForMonth=[];
+  try{
+    const cartaoVirtualItems=await getCartaoBudgetItems();
+    cartaoForMonth=cartaoVirtualItems.filter(ci=>ci.faturaMonth===curMonth&&ci.faturaYear===curYear);
+  }catch(e){console.warn('Cartoes store not ready:',e);}
   const items=[...manualItems,...cartaoForMonth];
   const doneList=await doneAllForMonth(curYear,curMonth);
   const doneIds=new Set(doneList.map(d=>d.budgetId));
@@ -2271,6 +2273,7 @@ async function renderBudget(){
       </div>
     </div>`;
   }).join('');
+  }catch(err){console.error('renderBudget error:',err);}
 }
 
 

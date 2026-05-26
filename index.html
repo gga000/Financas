@@ -60,6 +60,28 @@ body{min-height:100vh;padding-bottom:76px}
 .person-filter-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);font-weight:500;display:inline-flex;align-items:center;gap:5px}
 .person-filter-btn.active{border-color:currentColor;font-weight:600}
 
+
+/* ── CARTÕES ── */
+.card-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;cursor:pointer;transition:background .15s}
+.card-item:hover{background:var(--bg3)}
+.card-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.card-logo{width:42px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;letter-spacing:.3px}
+.card-name{font-size:15px;font-weight:600}
+.card-dates{font-size:11px;color:var(--text3);margin-top:2px}
+.card-total{font-size:18px;font-weight:700;font-family:var(--mono);color:var(--red);margin-top:6px}
+.card-total.zero{color:var(--text3)}
+.card-progress{height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;margin-top:8px}
+.card-progress-fill{height:100%;border-radius:2px;background:var(--blue);transition:width .4s}
+.card-gasto-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px}
+.card-gasto-info{flex:1;min-width:0}
+.card-gasto-name{font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-gasto-meta{font-size:11px;color:var(--text3);margin-top:2px;display:flex;flex-direction:column;gap:2px}
+.card-gasto-val{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--red);flex-shrink:0}
+.card-color-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+/* Config gear button on dash header */
+.cfg-btn{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;flex-shrink:0}
+.cfg-btn:hover{background:var(--bg4)}
+.cfg-btn svg{width:18px;height:18px;stroke:var(--text2);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 /* NAV */
 #nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px)}
 .nav-btn{flex:1;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;color:var(--text3);font-size:10px;font-family:var(--font);cursor:pointer;transition:color .2s}
@@ -296,6 +318,11 @@ select option{background:var(--bg3)}
 <div id="page-dash" class="page active">
   <div class="page-header">
     <span class="page-title">💰 Finanças</span>
+    <button class="cfg-btn" onclick="showPage('cfg',document.querySelector('.nav-btn:last-child'))" title="Configurações">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </button>
+  </div>
+  <div style="display:flex;justify-content:center;margin-bottom:14px">
     <div class="month-nav">
       <button onclick="changeMonth(-1)">‹</button>
       <span class="month-label" id="month-label-dash"></span>
@@ -341,7 +368,7 @@ select option{background:var(--bg3)}
     <button class="tab" onclick="filterTx('income',this)">Receitas</button>
     <button class="tab" onclick="filterTx('fixed',this)">Fixas</button>
     <button class="tab" onclick="filterTx('variable',this)">Variáveis</button>
-    <button class="tab" onclick="filterTx('credit',this)">Cartão</button>
+
   </div>
   <div id="person-filter-bar-tx"></div>
   <div id="tx-list" class="tx-list"></div>
@@ -438,6 +465,15 @@ select option{background:var(--bg3)}
   </div>
 </div>
 
+<!-- CARTÕES -->
+<div id="page-cards" class="page">
+  <div class="page-header">
+    <span class="page-title">💳 Cartões</span>
+    <button class="btn btn-primary btn-sm" onclick="showAddCartaoModal()">+ Cartão</button>
+  </div>
+  <div id="cards-list"></div>
+</div>
+
 <!-- NAV -->
 <nav id="nav">
   <button class="nav-btn active" onclick="showPage('dash',this)">
@@ -448,6 +484,10 @@ select option{background:var(--bg3)}
     <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
     <span>Lançamentos</span>
   </button>
+  <button class="nav-btn" onclick="showPage('cards',this)">
+    <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    <span>Cartões</span>
+  </button>
   <button class="nav-btn" onclick="showPage('proj',this)">
     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span>Projeção</span>
@@ -455,10 +495,6 @@ select option{background:var(--bg3)}
   <button class="nav-btn" onclick="showPage('budget',this)">
     <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
     <span>Orçamento</span>
-  </button>
-  <button class="nav-btn" onclick="showPage('cfg',this)">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    <span>Config</span>
   </button>
 </nav>
 
@@ -509,7 +545,7 @@ function toggleTheme(dark){applyTheme(dark)}
 /* ── DB ── */
 function openDB(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open('financas_pwa_v2',3);
+    const r=indexedDB.open('financas_pwa_v2',4);
     r.onupgradeneeded=e=>{
       const d=e.target.result;
       if(!d.objectStoreNames.contains('tx')){
@@ -524,6 +560,13 @@ function openDB(){
       }
       if(!d.objectStoreNames.contains('pessoas')){
         d.createObjectStore('pessoas',{keyPath:'id',autoIncrement:true});
+      }
+      if(!d.objectStoreNames.contains('cartoes')){
+        d.createObjectStore('cartoes',{keyPath:'id',autoIncrement:true});
+      }
+      if(!d.objectStoreNames.contains('gastos')){
+        const gs=d.createObjectStore('gastos',{keyPath:'id',autoIncrement:true});
+        gs.createIndex('cartaoId','cartaoId');
       }
     };
     r.onsuccess=e=>res(e.target.result);
@@ -544,6 +587,15 @@ const pessoasAll=()=>new Promise(res=>{const t=db.transaction('pessoas','readonl
 const pessoasAdd=item=>new Promise((res,rej)=>{const t=db.transaction('pessoas','readwrite');const r=t.objectStore('pessoas').add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const pessoasPut=item=>new Promise((res,rej)=>{const t=db.transaction('pessoas','readwrite');const r=t.objectStore('pessoas').put(item);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)});
 const pessoasDel=id=>new Promise(res=>{const t=db.transaction('pessoas','readwrite');t.objectStore('pessoas').delete(id).onsuccess=()=>res()});
+/* ── CARTÕES DB ── */
+const cartoesAll=()=>new Promise(res=>{const t=db.transaction('cartoes','readonly');t.objectStore('cartoes').getAll().onsuccess=e=>res(e.target.result||[])});
+const cartoesAdd=item=>new Promise((res,rej)=>{const t=db.transaction('cartoes','readwrite');const r=t.objectStore('cartoes').add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const cartoesPut=item=>new Promise((res,rej)=>{const t=db.transaction('cartoes','readwrite');const r=t.objectStore('cartoes').put(item);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)});
+const cartoesDel=id=>new Promise(res=>{const t=db.transaction('cartoes','readwrite');t.objectStore('cartoes').delete(id).onsuccess=()=>res()});
+const gastosAll=()=>new Promise(res=>{const t=db.transaction('gastos','readonly');t.objectStore('gastos').getAll().onsuccess=e=>res(e.target.result||[])});
+const gastosAdd=item=>new Promise((res,rej)=>{const t=db.transaction('gastos','readwrite');const r=t.objectStore('gastos').add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const gastosPut=item=>new Promise((res,rej)=>{const t=db.transaction('gastos','readwrite');const r=t.objectStore('gastos').put(item);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)});
+const gastosDel=id=>new Promise(res=>{const t=db.transaction('gastos','readwrite');t.objectStore('gastos').delete(id).onsuccess=()=>res()});
 
 function doneKey(budgetId,y,m){return`${budgetId}_${y}${String(m+1).padStart(2,'0')}`}
 const doneGet=key=>new Promise(res=>{try{const t=db.transaction('budgetDone','readonly');const r=t.objectStore('budgetDone').get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null)}catch{res(null)}});
@@ -812,14 +864,356 @@ function setPessoaFilter(id,btn){
   renderAll();
 }
 
+
+/* ── CARTÕES COLORS ── */
+const CARD_COLORS=['#1a1a2e','#16213e','#0f3460','#533483','#2b2d42','#1b4332','#7b2d8b','#c0392b'];
+const CARD_COLOR_NAMES=['Midnight','Navy','Ocean','Purple','Charcoal','Forest','Violet','Crimson'];
+
+/* ── FATURA LOGIC ── */
+function getFaturaMonth(dateISO, cartao){
+  // Determine which fatura a gasto belongs to, based on cartao.fechamento
+  // Day >= fechamento -> next month's fatura; day < fechamento -> current month's fatura
+  if(!dateISO||!cartao)return null;
+  const d=new Date(dateISO+'T12:00:00');
+  const day=d.getDate();
+  let fatMonth=d.getMonth();
+  let fatYear=d.getFullYear();
+  if(day>=cartao.fechamento){
+    fatMonth++;
+    if(fatMonth>11){fatMonth=0;fatYear++;}
+  }
+  return{month:fatMonth,year:fatYear};
+}
+
+function getFaturaVencimento(fatYear,fatMonth,cartao){
+  // Returns ISO date of vencimento for a given fatura month/year
+  if(!cartao)return null;
+  const day=Math.min(cartao.vencimento,28);
+  return fatYear+'-'+String(fatMonth+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+}
+
+function getCurrentFatura(cartao){
+  // Returns {month,year} of the "current" fatura (based on today)
+  const today=new Date();
+  const day=today.getDate();
+  let m=today.getMonth(),y=today.getFullYear();
+  if(day>=cartao.fechamento){m++;if(m>11){m=0;y++;}}
+  return{month:m,year:y};
+}
+
+async function getCartaoFaturaGastos(cartaoId, fatMonth, fatYear){
+  const all=await gastosAll();
+  const cartoes=await cartoesAll();
+  const cartao=cartoes.find(c=>c.id===cartaoId);
+  if(!cartao)return[];
+  return all.filter(g=>{
+    if(g.cartaoId!==cartaoId)return false;
+    const fm=getFaturaMonth(g.date,cartao);
+    return fm&&fm.month===fatMonth&&fm.year===fatYear;
+  });
+}
+
+async function getCartaoFaturaTotal(cartaoId, fatMonth, fatYear){
+  const gastos=await getCartaoFaturaGastos(cartaoId,fatMonth,fatYear);
+  return gastos.reduce((s,g)=>s+g.value,0);
+}
+
+/* ── CARTÃO MODAL ── */
+function showAddCartaoModal(cartao=null){
+  const isEdit=!!cartao;
+  const defColor=cartao?.color||CARD_COLORS[0];
+  openModal(`
+    <div class="modal-title">${isEdit?'✏️ Editar cartão':'Novo cartão'}</div>
+    <div class="form-group">
+      <label>Nome do cartão</label>
+      <input id="cc-name" placeholder="Ex: Nubank, Itaú, Inter..." value="${isEdit?cartao.name.replace(/"/g,'&quot;'):''}">
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Dia fechamento</label>
+        <input id="cc-fech" type="text" inputmode="numeric" placeholder="Ex: 15" value="${isEdit?cartao.fechamento:''}">
+      </div>
+      <div class="form-group">
+        <label>Dia vencimento</label>
+        <input id="cc-venc" type="text" inputmode="numeric" placeholder="Ex: 22" value="${isEdit?cartao.vencimento:''}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Responsável <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <div id="cc-pessoa-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+    </div>
+    <div class="form-group">
+      <label>Cor</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        ${CARD_COLORS.map((c,i)=>'<div class="color-swatch'+(c===defColor?' selected':'')+'" style="background:'+c+';width:32px;height:20px;border-radius:4px" data-color="'+c+'" onclick="selectPessoaColor(this.dataset.color)"></div>').join('')}
+      </div>
+      <input type="hidden" id="p-color" value="${defColor}">
+    </div>
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn btn-primary" style="flex:1" onclick="${isEdit?'saveCartaoEdit('+cartao.id+')':'saveCartao()'}">Salvar</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+    </div>`);
+  setTimeout(()=>renderPessoaChips('cc-pessoa-chips',cartao?.pessoaId||null),50);
+}
+
+async function saveCartao(){
+  const name=document.getElementById('cc-name')?.value.trim();
+  const fechamento=parseInt(document.getElementById('cc-fech')?.value)||0;
+  const vencimento=parseInt(document.getElementById('cc-venc')?.value)||0;
+  const color=document.getElementById('p-color')?.value||CARD_COLORS[0];
+  const pessoaId=getSelectedPessoa('cc-pessoa-chips');
+  if(!name||!fechamento||!vencimento||fechamento<1||fechamento>31||vencimento<1||vencimento>31){
+    toast('Preencha nome e dias válidos!','var(--red)');return;
+  }
+  await cartoesAdd({name,fechamento,vencimento,color,pessoaId,createdAt:Date.now()});
+  toast('Cartão adicionado!','var(--blue)');
+  closeModal();renderCards();refreshBudgetCartoes();
+}
+
+async function saveCartaoEdit(id){
+  const name=document.getElementById('cc-name')?.value.trim();
+  const fechamento=parseInt(document.getElementById('cc-fech')?.value)||0;
+  const vencimento=parseInt(document.getElementById('cc-venc')?.value)||0;
+  const color=document.getElementById('p-color')?.value||CARD_COLORS[0];
+  const pessoaId=getSelectedPessoa('cc-pessoa-chips');
+  if(!name||!fechamento||!vencimento){toast('Preencha todos os campos!','var(--red)');return;}
+  const all=await cartoesAll();
+  const existing=all.find(c=>c.id===id);
+  if(!existing)return;
+  await cartoesPut({...existing,name,fechamento,vencimento,color,pessoaId});
+  toast('Cartão atualizado!','var(--blue)');
+  closeModal();renderCards();refreshBudgetCartoes();
+}
+
+async function deleteCartao(id){
+  if(!confirm('Remover este cartão e todos os gastos associados?'))return;
+  // delete all gastos for this card
+  const all=await gastosAll();
+  for(const g of all.filter(g=>g.cartaoId===id))await gastosDel(g.id);
+  await cartoesDel(id);
+  toast('Cartão removido','var(--red)');
+  renderCards();refreshBudgetCartoes();
+}
+
+/* ── GASTO MODAL ── */
+function showAddGastoModal(cartaoId, cartao, gasto=null){
+  const isEdit=!!gasto;
+  openModal(`
+    <div class="modal-title">${isEdit?'✏️ Editar gasto':'Novo gasto — '+cartao.name}</div>
+    <div class="form-group">
+      <label>Descrição</label>
+      <input id="cg-name" placeholder="Ex: Supermercado, Restaurante..." value="${isEdit?gasto.name.replace(/"/g,'&quot;'):''}">
+    </div>
+    <div class="form-group">
+      <label>Valor</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="cg-val" type="text" inputmode="decimal" placeholder="0,00" value="${isEdit?gasto.value:''}" style="flex:1">
+        <button type="button" onclick="openGastoNumpad()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)" title="Calculadora">📟</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Data do gasto</label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="cg-date" type="date" value="${isEdit?gasto.date:todayISO()}" style="flex:1" onchange="updateFaturaPreview()">
+        <button type="button" onclick="clearDate('cg-date','cg-date-clear');updateFaturaPreview()" id="cg-date-clear" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 2px;display:${isEdit&&gasto.date?'inline':'none'}" title="Limpar">✕</button>
+      </div>
+    </div>
+    <div id="cg-fatura-preview" style="font-size:12px;color:var(--blue);margin-top:-6px;margin-bottom:10px;min-height:16px"></div>
+    <div class="form-group">
+      <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <textarea id="cg-obs" placeholder="Detalhes...">${isEdit?gasto.obs||'':''}</textarea>
+    </div>
+    <input type="hidden" id="cg-cartao-id" value="${cartaoId}">
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn btn-primary" style="flex:1" onclick="${isEdit?'saveGastoEdit('+gasto.id+')':'saveGasto()'}">Salvar</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+    </div>`);
+  setTimeout(()=>updateFaturaPreview(cartao),50);
+}
+
+async function updateFaturaPreview(cartaoObj){
+  const prev=document.getElementById('cg-fatura-preview');
+  if(!prev)return;
+  const dateVal=document.getElementById('cg-date')?.value;
+  const cartaoId=parseInt(document.getElementById('cg-cartao-id')?.value);
+  if(!dateVal){prev.textContent='';return;}
+  let cartao=cartaoObj;
+  if(!cartao){const all=await cartoesAll();cartao=all.find(c=>c.id===cartaoId);}
+  if(!cartao){prev.textContent='';return;}
+  const fm=getFaturaMonth(dateVal,cartao);
+  if(!fm){prev.textContent='';return;}
+  prev.textContent='→ Fatura de '+MONTHS[fm.month]+'/'+fm.year;
+}
+
+async function openGastoNumpad(){
+  const cur=document.getElementById('cg-val')?.value||'';
+  const result=await openNumpad(cur);
+  if(result!==null){
+    const inp=document.getElementById('cg-val');
+    if(inp){
+      const r=hasOp(result)?evalExpr(result):parseFloat(result.replace(',','.'));
+      inp.value=isNaN(r)?result:String(r).replace('.',',');
+    }
+  }
+}
+
+function getGastoVal(){
+  const raw=(document.getElementById('cg-val')?.value||'').trim();
+  let val=NaN;
+  if(hasOp(raw))val=evalExpr(raw);
+  if(isNaN(val))val=parseFloat(raw.replace(',','.'));
+  if(isNaN(val))val=parseFloat(raw.replace('.','').replace(',','.'));
+  return val;
+}
+
+async function saveGasto(){
+  const name=document.getElementById('cg-name')?.value.trim();
+  const val=getGastoVal();
+  const date=document.getElementById('cg-date')?.value||todayISO();
+  const obs=document.getElementById('cg-obs')?.value.trim()||'';
+  const cartaoId=parseInt(document.getElementById('cg-cartao-id')?.value);
+  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
+  await gastosAdd({name,value:val,date,obs,cartaoId,createdAt:Date.now()});
+  toast('Gasto adicionado!');
+  closeModal();renderCards();refreshBudgetCartoes();
+}
+
+async function saveGastoEdit(id){
+  const name=document.getElementById('cg-name')?.value.trim();
+  const val=getGastoVal();
+  const date=document.getElementById('cg-date')?.value||todayISO();
+  const obs=document.getElementById('cg-obs')?.value.trim()||'';
+  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
+  const all=await gastosAll();
+  const existing=all.find(g=>g.id===id);
+  if(!existing)return;
+  await gastosPut({...existing,name,value:val,date,obs});
+  toast('Gasto atualizado!');
+  closeModal();renderCards();refreshBudgetCartoes();
+}
+
+async function deleteGasto(id){
+  if(!confirm('Remover este gasto?'))return;
+  await gastosDel(id);
+  toast('Gasto removido','var(--red)');
+  renderCards();refreshBudgetCartoes();
+}
+
+/* ── RENDER CARDS PAGE ── */
+async function renderCards(){
+  const cartoes=await cartoesAll();
+  const pessoas=await pessoasAll();
+  const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
+  const allGastos=await gastosAll();
+  const el=document.getElementById('cards-list');
+  if(!el)return;
+  if(!cartoes.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon">💳</div>Nenhum cartão cadastrado.<br>Toque em <strong>+ Cartão</strong> para começar.</div>';
+    return;
+  }
+  let html='';
+  for(const cartao of cartoes){
+    const fatura=getCurrentFatura(cartao);
+    const gastosFatura=allGastos.filter(g=>{
+      if(g.cartaoId!==cartao.id)return false;
+      const fm=getFaturaMonth(g.date,cartao);
+      return fm&&fm.month===fatura.month&&fm.year===fatura.year;
+    });
+    const total=gastosFatura.reduce((s,g)=>s+g.value,0);
+    const pessoa=cartao.pessoaId?pessoaMap[cartao.pessoaId]:null;
+    html+=`<div class="card-item">
+      <div class="card-header">
+        <div class="card-logo" style="background:${cartao.color}">${cartao.name.substring(0,3).toUpperCase()}</div>
+        <div style="flex:1">
+          <div class="card-name">${cartao.name}</div>
+          <div class="card-dates">Fecha dia ${cartao.fechamento} · Vence dia ${cartao.vencimento} · Fatura ${MONTHS[fatura.month].substring(0,3)}/${fatura.year}</div>
+          ${pessoa?'<div style="margin-top:3px">'+personAvatarHtml(pessoa,14)+' <span style="font-size:11px;color:var(--text3)">'+pessoa.nome+'</span></div>':''}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="tx-btn edit" onclick="showAddCartaoModal(${JSON.stringify(cartao).replace(/"/g,'&quot;')})">✏️</button>
+          <button class="tx-btn del" onclick="deleteCartao(${cartao.id})">✕</button>
+        </div>
+      </div>
+      <div class="card-total${total===0?' zero':''}">${total===0?'R$ 0,00':'-'+fmt(total)}</div>
+      <div class="card-progress"><div class="card-progress-fill" style="width:${Math.min(100,total/50*1)}%"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--text3)">${gastosFatura.length} gasto(s) na fatura atual</span>
+        <button class="btn btn-primary btn-sm" onclick="showAddGastoModal(${cartao.id},${JSON.stringify(cartao).replace(/"/g,'&quot;')})">+ Gasto</button>
+      </div>
+      ${gastosFatura.length?gastosFatura.sort((a,b)=>b.date>a.date?-1:1).map(g=>`
+        <div class="card-gasto-item">
+          <div class="card-gasto-info">
+            <div class="card-gasto-name">${g.name}</div>
+            <div class="card-gasto-meta">
+              ${g.date?'<span>📅 '+fmtDate(g.date)+'</span>':''}
+              ${g.obs?'<span>💬 '+g.obs+'</span>':''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="card-gasto-val">-${fmt(g.value)}</div>
+            <button class="tx-btn edit" onclick="showAddGastoModal(${cartao.id},${JSON.stringify(cartao).replace(/"/g,'&quot;')},${JSON.stringify(g).replace(/"/g,'&quot;')})">✏️</button>
+            <button class="tx-btn del" onclick="deleteGasto(${g.id})">✕</button>
+          </div>
+        </div>`).join(''):''}
+    </div>`;
+  }
+  el.innerHTML=html;
+}
+
+/* ── BUDGET CARTOES INTEGRATION ── */
+async function refreshBudgetCartoes(){
+  // Called whenever gastos change - updates budget virtual items
+  // Budget page re-renders if active
+  const p=document.querySelector('.page.active');
+  if(p&&p.id==='page-budget')renderBudget();
+}
+
+async function getCartaoBudgetItems(){
+  // Returns virtual budget items from cartoes (one per cartao, current fatura)
+  const cartoes=await cartoesAll();
+  const allGastos=await gastosAll();
+  const result=[];
+  for(const cartao of cartoes){
+    const fatura=getCurrentFatura(cartao);
+    const gastosFatura=allGastos.filter(g=>{
+      if(g.cartaoId!==cartao.id)return false;
+      const fm=getFaturaMonth(g.date,cartao);
+      return fm&&fm.month===fatura.month&&fm.year===fatura.year;
+    });
+    const total=gastosFatura.reduce((s,g)=>s+g.value,0);
+    const vencDate=getFaturaVencimento(fatura.year,fatura.month,cartao);
+    // obs = list of gasto names
+    const obsLines=gastosFatura.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+    result.push({
+      _isCartao:true,
+      _cartaoId:cartao.id,
+      _cartao:cartao,
+      _gastos:gastosFatura,
+      id:'cartao_'+cartao.id,
+      name:cartao.name,
+      value:total,
+      type:'credit',
+      dueDay:cartao.vencimento,
+      dueDate:vencDate,
+      obs:obsLines,
+      pessoaId:cartao.pessoaId,
+      faturaMonth:fatura.month,
+      faturaYear:fatura.year,
+    });
+  }
+  return result;
+}
+
 /* ── EXPORT / IMPORT ── */
 async function exportData(){
   const all=await dbAll();
   const buds=await budgetAll();
   if(!all.length&&!buds.length){toast('Nenhum dado para exportar','var(--amber)');return}
   const pessoas=await pessoasAll();
+  const cartoes=await cartoesAll();
+  const gastos=await gastosAll();
   const budgetDoneAll=await new Promise(res=>{const t=db.transaction('budgetDone','readonly');t.objectStore('budgetDone').getAll().onsuccess=e=>res(e.target.result||[])});
-  const json=JSON.stringify({version:4,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,budgetDone:budgetDoneAll},null,2);
+  const json=JSON.stringify({version:5,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,cartoes,gastos,budgetDone:budgetDoneAll},null,2);
   const blob=new Blob([json],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -841,6 +1235,8 @@ function importData(e){
       const total=items.length+(budgetItems.length||0)+(pessoaItems.length||0);
       if(!confirm(`Importar ${total} registros? Os dados atuais serão mantidos.`))return;
       let count=0;
+      const cartaoItems=obj.cartoes||[];
+      const gastoItems=obj.gastos||[];
       // Import pessoas first, build oldId->newId map for remapping
       const pessoaIdMap={};
       for(const item of pessoaItems){
@@ -885,8 +1281,25 @@ function importData(e){
         });
         count++;
       }
+      // Import cartoes, build cartaoIdMap
+      const cartaoIdMap={};
+      for(const item of cartaoItems){
+        const{id:oldId,...rest}=item;
+        if(!rest.name)continue;
+        if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
+        const newId=await cartoesAdd(rest);
+        if(oldId&&newId)cartaoIdMap[oldId]=newId;
+        count++;
+      }
+      // Import gastos, remapping cartaoId
+      for(const item of gastoItems){
+        const{id,...rest}=item;
+        if(!rest.name||!rest.value)continue;
+        if(rest.cartaoId&&cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
+        await gastosAdd(rest);count++;
+      }
       toast(`${count} registros importados!`,'var(--green)');
-      renderAll();renderBudget();renderPersonFilterBars();renderPessoasConfig();
+      renderAll();renderBudget();renderCards();renderPersonFilterBars();renderPessoasConfig();
     }catch(e){console.error(e);toast('Erro ao ler arquivo','var(--red)')}
   };
   reader.readAsText(file);e.target.value='';
@@ -898,10 +1311,13 @@ async function clearAll(){
   await new Promise(res=>{const t=db.transaction('budget','readwrite');t.objectStore('budget').clear().onsuccess=()=>res()});
   await new Promise(res=>{const t=db.transaction('budgetDone','readwrite');t.objectStore('budgetDone').clear().onsuccess=()=>res()});
   await new Promise(res=>{const t=db.transaction('pessoas','readwrite');t.objectStore('pessoas').clear().onsuccess=()=>res()});
+  await new Promise(res=>{const t=db.transaction('cartoes','readwrite');t.objectStore('cartoes').clear().onsuccess=()=>res()});
+  await new Promise(res=>{const t=db.transaction('gastos','readwrite');t.objectStore('gastos').clear().onsuccess=()=>res()});
   pessoaFilter=null;
   toast('Todos os dados apagados','var(--red)');
   renderAll();
   renderBudget();
+  renderCards();
   renderPessoasConfig();
   renderPersonFilterBars();
 }
@@ -914,6 +1330,7 @@ function showPage(id,btn){
   btn.classList.add('active');
   if(id==='dash')renderDash();
   else if(id==='tx')renderTx();
+  else if(id==='cards')renderCards();
   else if(id==='proj')renderProj();
   else if(id==='budget')renderBudget();
   else if(id==='cfg')renderCfg();
@@ -968,7 +1385,7 @@ function entryFormHtml(t=null){
           <option value="income"${defType==='income'?' selected':''}>💵 Receita</option>
           <option value="fixed"${defType==='fixed'?' selected':''}>🏠 Despesa Fixa</option>
           <option value="variable"${defType==='variable'?' selected':''}>🛒 Despesa Variável</option>
-          <option value="credit"${defType==='credit'?' selected':''}>💳 Cartão</option>
+
         </select>
       </div>
       <div class="form-group">
@@ -1468,283 +1885,11 @@ async function renderProj(){
         <div class="tx-icon credit">${ICONS.credit}</div>
         <div class="tx-info">
           <div class="tx-name">${t.name}</div>
-          <div class="tx-meta">${MONTHS[t.month]} ${t.year}${t.date?` · 📅 Venc. ${fmtDate(t.date)}`:''}</div>
-          ${t.obs?`<div class="tx-obs">💬 ${t.obs}</div>`:''}
+          <div class="tx-meta">${MONTHS[t.month]} ${t.year}${t.date?' · 📅 Venc. '+fmtDate(t.date):''}${t.obs?' · 💬 '+t.obs:''}</div>
         </div>
         <div class="tx-right"><div class="tx-val expense">-${fmt(t.value)}</div></div>
       </div>`).join('')
     :`<div class="empty"><div class="empty-icon">💳</div>Nenhuma parcela futura cadastrada.</div>`;
-}
-
-/* ── BUDGET ── */
-function showBudgetAddModal(item=null){
-  const isEdit=!!item;
-  openModal(`
-    <div class="modal-title">${isEdit?'✏️ Editar item':'Novo item do orçamento'}</div>
-    <div class="form-group">
-      <label>Descrição</label>
-      <input id="b-name" placeholder="Ex: Aluguel, Cartão, Streaming..." value="${isEdit?item.name.replace(/"/g,'&quot;'):''}">
-    </div>
-    <div class="form-group">
-      <label>Valor esperado</label>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="b-val" type="text" inputmode="decimal" placeholder="0,00" value="${isEdit?(item.rawExpr||item.value):''}" style="flex:1" oninput="onBudgetValInput()">
-        <button type="button" onclick="openBudgetValNumpad()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)" title="Calculadora">📟</button>
-      </div>
-      <div id="b-val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
-    </div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Tipo</label>
-        <select id="b-type">
-          <option value="income"${item?.type==='income'?' selected':''}>💵 Receita</option>
-          <option value="fixed"${(!item||item?.type==='fixed')?' selected':''}>🏠 Despesa Fixa</option>
-          <option value="credit"${item?.type==='credit'?' selected':''}>💳 Cartão</option>
-          <option value="variable"${item?.type==='variable'?' selected':''}>🛒 Variável</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Vencimento (dia)</label>
-        <input id="b-day" type="number" min="1" max="31" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}">
-      </div>
-    </div>
-
-    <div class="form-group">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <label style="margin:0">Subitens</label>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="addSubitem()">+ Subitem</button>
-      </div>
-      <div id="modal-b-subitems-area"></div>
-      <div class="hint">O valor total será calculado automaticamente pelos subitens</div>
-    </div>
-
-    <div class="form-group">
-      <label>Responsável <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <div id="b-pessoa-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
-    </div>
-    <div class="form-group">
-      <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <textarea id="b-obs" placeholder="Detalhes...">${isEdit?item.obs||'':''}</textarea>
-    </div>
-    <div class="btn-row" style="margin-top:4px">
-      <button class="btn btn-primary" style="flex:1" onclick="${isEdit?`saveBudgetEdit(${item.id})`:'saveBudgetItem()'}">${isEdit?'Salvar':'Adicionar'}</button>
-      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
-    </div>
-  `);
-  setTimeout(()=>{
-    renderPessoaChips('b-pessoa-chips',isEdit?item.pessoaId||null:null);
-    if(isEdit&&item.rawExpr){
-      const inp=document.getElementById('b-val');
-      if(inp){
-        inp.dataset.rawExpr=item.rawExpr;
-        const r=evalExpr(item.rawExpr);
-        const prev=document.getElementById('b-val-preview');
-        if(prev&&!isNaN(r)){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
-      }
-    }
-  },50);
-  setTimeout(()=>{
-    if(isEdit&&item.subitems?.length){
-      item.subitems.forEach(s=>addSubitem(s.name,s.value));
-    }
-  },50);
-}
-
-async function openBudgetValNumpad(){
-  const valInp=document.getElementById('b-val');
-  const cur=valInp?.dataset?.rawExpr||valInp?.value||'';
-  const result=await openNumpad(cur);
-  if(result!==null&&valInp){
-    if(hasOp(result)){
-      const r=evalExpr(result);
-      if(!isNaN(r)){
-        valInp.dataset.rawExpr=result;
-        valInp.value=result;
-        const prev=document.getElementById('b-val-preview');
-        if(prev){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
-      }
-    }else{
-      valInp.dataset.rawExpr='';
-      valInp.value=result;
-      const prev=document.getElementById('b-val-preview');
-      if(prev)prev.textContent='';
-    }
-  }
-}
-
-function getBudgetVal(){
-  const inp=document.getElementById('b-val');
-  const fieldVal=(inp?.value||'').trim();
-  const storedExpr=inp?.dataset?.rawExpr||'';
-  const exprToEval=storedExpr||fieldVal;
-  let val=NaN;
-  if(hasOp(exprToEval)){val=evalExpr(exprToEval);}
-  if(isNaN(val)){val=parseFloat(fieldVal.replace(',','.'));}
-  if(isNaN(val)){val=parseFloat(fieldVal.replace('.','').replace(',','.'));}
-  return val;
-}
-function getBudgetRawExpr(){
-  const inp=document.getElementById('b-val');
-  const storedExpr=inp?.dataset?.rawExpr||'';
-  const fieldVal=(inp?.value||'').trim();
-  const expr=storedExpr||(hasOp(fieldVal)?fieldVal:'');
-  return expr||null;
-}
-function onBudgetValInput(){
-  const inp=document.getElementById('b-val');
-  if(inp&&inp.dataset)inp.dataset.rawExpr='';
-  const raw=inp?.value||'';
-  const prev=document.getElementById('b-val-preview');
-  if(!prev)return;
-  if(hasOp(raw)){const r=evalExpr(raw);prev.textContent=isNaN(r)?'⚠ inválido':'= '+fmt(r);prev.style.color=isNaN(r)?'var(--red)':'var(--green)';}
-  else prev.textContent='';
-}
-async function saveBudgetItem(){
-  const subitems=getSubitems();
-  const name=document.getElementById('b-name').value.trim();
-  const val=getBudgetVal();
-  const type=document.getElementById('b-type').value;
-  const dueDay=parseInt(document.getElementById('b-day').value)||null;
-  const obs=document.getElementById('b-obs').value.trim();
-  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
-  const bPessoaId=getSelectedPessoa('b-pessoa-chips');
-  const bRawExpr=getBudgetRawExpr();
-  await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,pessoaId:bPessoaId,createdAt:Date.now()});
-  toast('Item adicionado!','var(--teal)');closeModal();renderBudget();
-}
-
-async function saveBudgetEdit(id){
-  const subitems=getSubitems();
-  const name=document.getElementById('b-name').value.trim();
-  const val=getBudgetVal();
-  const type=document.getElementById('b-type').value;
-  const dueDay=parseInt(document.getElementById('b-day').value)||null;
-  const obs=document.getElementById('b-obs').value.trim();
-  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
-  const all=await budgetAll();
-  const existing=all.find(x=>x.id===id);
-  if(!existing)return;
-  const bPessoaId=getSelectedPessoa('b-pessoa-chips');
-  const bRawExpr=getBudgetRawExpr();
-  await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,pessoaId:bPessoaId});
-  toast('Item atualizado!','var(--teal)');closeModal();renderBudget();
-}
-
-async function toggleBudgetDone(budgetId){
-  const key=doneKey(budgetId,budgetYear,budgetMonth);
-  const existing=await doneGet(key);
-  if(existing){
-    if(existing.txId){
-      await dbDel(existing.txId);
-    }
-    await doneDel(key);
-    toast('Marcação desfeita','var(--amber)');
-  } else {
-    const buds=await budgetAll();
-    const item=buds.find(x=>x.id===budgetId);
-    if(!item)return;
-    const day=item.dueDay||1;
-    const dateStr=`${budgetYear}-${String(budgetMonth+1).padStart(2,'0')}-${String(Math.min(day,28)).padStart(2,'0')}`;
-    const txId=await dbAdd({
-      name:item.name,
-      value:item.value,
-      rawExpr:item.rawExpr||null,
-      subitems:item.subitems||[],
-      type:item.type,
-      month:budgetMonth,
-      year:budgetYear,
-      ym:ym(budgetYear,budgetMonth),
-      date:dateStr,
-      obs:item.obs||'',
-      pessoaId:item.pessoaId||null,
-      fromBudget:true,
-      createdAt:Date.now()
-    });
-    await donePut({key,budgetId,txId,doneAt:Date.now()});
-    toast('Lançamento registrado! ✅','var(--green)');
-  }
-  renderBudget();
-  const p=document.querySelector('.page.active');
-  if(p&&p.id==='page-tx')renderTx();
-  if(p&&p.id==='page-dash')renderDash();
-}
-
-async function deleteBudgetItem(id){
-  if(!confirm('Remover este item do orçamento? Os lançamentos já realizados serão mantidos.'))return;
-  await budgetDel(id);
-  await new Promise(res=>{
-    const t=db.transaction('budgetDone','readwrite');
-    const store=t.objectStore('budgetDone');
-    store.getAll().onsuccess=e=>{
-      (e.target.result||[]).filter(r=>r.budgetId===id).forEach(r=>store.delete(r.key));
-      res();
-    };
-  });
-  toast('Item removido','var(--red)');renderBudget();
-}
-
-async function renderBudget(){
-  const labelEl=document.getElementById('budget-month-label');
-  if(labelEl)labelEl.textContent=MONTHS[budgetMonth].substring(0,3)+' '+budgetYear;
-  const items=await budgetAll();
-  const doneList=await doneAllForMonth(budgetYear,budgetMonth);
-  const doneIds=new Set(doneList.map(d=>d.budgetId));
-  const listEl=document.getElementById('budget-list');
-  if(!items.length){
-    document.getElementById('budget-summary-card').style.display='none';
-    listEl.innerHTML=`<div class="empty"><div class="empty-icon">📋</div>Nenhum item no orçamento.<br>Toque em <strong>+ Item</strong> para começar.</div>`;
-    return;
-  }
-  const incomeItems=items.filter(i=>i.type==='income');
-  const expenseItems=items.filter(i=>i.type!=='income');
-  const totalIncome=incomeItems.reduce((s,i)=>s+i.value,0);
-  const totalExpense=expenseItems.reduce((s,i)=>s+i.value,0);
-  const doneIncome=incomeItems.filter(i=>doneIds.has(i.id)).reduce((s,i)=>s+i.value,0);
-  const doneExpense=expenseItems.filter(i=>doneIds.has(i.id)).reduce((s,i)=>s+i.value,0);
-  const doneCount=doneIds.size;
-  const pctAll=items.length>0?Math.round(doneCount/items.length*100):0;
-  document.getElementById('budget-summary-card').style.display='block';
-  document.getElementById('budget-progress-fill').style.width=pctAll+'%';
-  document.getElementById('budget-progress-fill').style.background=pctAll<50?'var(--amber)':pctAll<100?'var(--blue)':'var(--green)';
-  const summaryDiv=document.getElementById('budget-summary-text');
-  summaryDiv.innerHTML=`
-    <div><span style="color:var(--text2)">${doneCount}/${items.length} realizados</span></div>
-    <div><span style="color:var(--green)">💵 ${fmt(doneIncome)}</span> <span style="color:var(--text3)">/ ${fmt(totalIncome)}</span></div>
-    <div><span style="color:var(--red)">📤 ${fmt(doneExpense)}</span> <span style="color:var(--text3)">/ ${fmt(totalExpense)}</span></div>
-  `;
-  const pessoasBud=await pessoasAll();
-  const pessoaMapBud=Object.fromEntries(pessoasBud.map(p=>[p.id,p]));
-  const enrichedItems=items.map(i=>({...i,_pessoa:i.pessoaId?pessoaMapBud[i.pessoaId]:null}));
-  const sorted=[...enrichedItems].sort((a,b)=>{
-    const ad=doneIds.has(a.id)?1:0,bd=doneIds.has(b.id)?1:0;
-    if(ad!==bd)return ad-bd;
-    return(a.dueDay||99)-(b.dueDay||99);
-  });
-  listEl.innerHTML=sorted.map(item=>{
-    const done=doneIds.has(item.id);
-    const income=item.type==='income';
-    return`<div class="budget-item${done?' done':''}">
-      <div class="budget-check${done?' checked':''}" onclick="toggleBudgetDone(${item.id})">${done?'✓':''}</div>
-      <div class="budget-info">
-        <div class="budget-name">${item.name}</div>
-        <div class="budget-meta">
-          <span>${CAT_LABELS[item.type]||''}</span>
-          ${item.dueDay?`<span>📅 Dia ${item.dueDay}</span>`:''}
-          ${done?'<span style="color:var(--green)">✅ Realizado</span>':''}
-          ${item._pessoa?`<span class="person-tag">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
-        </div>
-        ${renderSubitemsHtml(item.subitems)}
-        ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
-      </div>
-      <div class="budget-right">
-        <div class="budget-val" style="${income?'color:var(--green)':'color:var(--text2)'}">${income?'+':'-'}${fmt(item.value)}</div>
-        <div class="budget-actions">
-          <button class="tx-btn edit" onclick="showBudgetAddModal(${JSON.stringify(item).replace(/"/g,'&quot;')})">✏️</button>
-          <button class="tx-btn del" onclick="deleteBudgetItem(${item.id})">✕</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
 }
 
 /* ── CONFIG ── */
@@ -1761,6 +1906,7 @@ async function renderAll(){
   if(!p)return;
   if(p.id==='page-dash')renderDash();
   else if(p.id==='page-tx')renderTx();
+  else if(p.id==='page-cards')renderCards();
   else if(p.id==='page-proj')renderProj();
   else if(p.id==='page-budget')renderBudget();
 }

@@ -1251,8 +1251,8 @@ async function getCartaoBudgetItems(){
       dueDate:vencDate,
       obs:obsLines,
       pessoaId:cartao.pessoaId,
-      faturaMonth:fatura.month,
-      faturaYear:fatura.year,
+      faturaMonth:tm,
+      faturaYear:ty,
     });
   }
   return result;
@@ -2185,7 +2185,7 @@ async function renderBudget(){
   // Add cartao virtual items safely (cartoes store may not exist yet)
   let cartaoForMonth=[];
   try{
-    const cartaoVirtualItems=await getCartaoBudgetItems();
+    const cartaoVirtualItems=await getCartaoBudgetItems(curMonth,curYear);
     cartaoForMonth=cartaoVirtualItems.filter(ci=>ci.faturaMonth===curMonth&&ci.faturaYear===curYear);
   }catch(e){console.warn('Cartoes store not ready:',e);}
   const items=[...manualItems,...cartaoForMonth];

@@ -1157,9 +1157,11 @@ async function saveGasto(){
   if(parcelado&&ptotal>1){
     if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return;}
     let d=date;
+    const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
     for(let i=pnum-1;i<ptotal;i++){
       const label=name+' '+(i+1)+'/'+ptotal;
-      await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,cartaoId,parcela:i+1,totalParcelas:ptotal,createdAt:Date.now()});
+      await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,cartaoId,
+        parcela:i+1,totalParcelas:ptotal,groupId,createdAt:Date.now()});
       const nd=addMonths(d,1);if(nd)d=nd;
     }
     toast((ptotal-pnum+1)+' parcelas adicionadas!','var(--purple)');
@@ -1178,37 +1180,82 @@ async function saveGastoEdit(id){
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
   const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
   const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
-  const parcela=parcelado?parseInt(document.getElementById('cg-pnum')?.value)||1:null;
-  const totalParcelas=parcelado?parseInt(document.getElementById('cg-ptotal')?.value)||1:null;
+  const pnum=parseInt(document.getElementById('cg-pnum')?.value)||1;
+  const ptotal=parseInt(document.getElementById('cg-ptotal')?.value)||1;
   const all=await gastosAll();
   const existing=all.find(g=>g.id===id);
   if(!existing)return;
+  // If has groupId (series), offer to update this + following
+  if(existing.groupId){
+    const future=all.filter(g=>g.groupId===existing.groupId&&
+      (g.date||'')>=(existing.date||'')&&g.id!==existing.id);
+    if(future.length>0){
+      closeModal();
+      showConfirm('Editar gasto parcelado','Este gasto faz parte de uma série de parcelas.',[
+        {label:'Apenas esta parcela',cls:'btn-ghost',action:async()=>{
+          await gastosPut({...existing,name,value:val,rawExpr:cgRawExpr,date,obs,
+            parcela:parcelado?pnum:existing.parcela,
+            totalParcelas:parcelado?ptotal:existing.totalParcelas});
+          toast('Parcela atualizada!');renderCards();refreshBudgetCartoes();
+        }},
+        {label:'Esta e seguintes',cls:'btn-primary',action:async()=>{
+          // Delete this and future, recreate series from this parcela forward
+          await gastosDel(id);
+          for(const g of future)await gastosDel(g.id);
+          const newGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+          const remaining=parcelado?ptotal-pnum+1:existing.totalParcelas-(existing.parcela||1)+1;
+          const startParcela=parcelado?pnum:(existing.parcela||1);
+          const newTotal=parcelado?ptotal:existing.totalParcelas;
+          let d=date;
+          for(let i=0;i<remaining;i++){
+            const label=name+' '+(startParcela+i)+'/'+(newTotal||remaining);
+            await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,
+              cartaoId:existing.cartaoId,parcela:startParcela+i,
+              totalParcelas:newTotal||remaining,groupId:newGroupId,createdAt:Date.now()});
+            const nd=addMonths(d,1);if(nd)d=nd;
+          }
+          toast('Série atualizada!','var(--teal)');renderCards();refreshBudgetCartoes();
+        }},
+        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+      ]);
+      return;
+    }
+  }
+  // Single gasto (no series or no future)
   await gastosPut({...existing,name,value:val,rawExpr:cgRawExpr,date,obs,
-    parcela:parcela||existing.parcela||null,
-    totalParcelas:totalParcelas||existing.totalParcelas||null});
+    parcela:parcelado?pnum:existing.parcela||null,
+    totalParcelas:parcelado?ptotal:existing.totalParcelas||null});
   toast('Gasto atualizado!');
   closeModal();renderCards();refreshBudgetCartoes();
 }
 
 async function deleteGasto(id){
+  const all=await gastosAll();
+  const item=all.find(g=>g.id===id);
+  if(!item){await gastosDel(id);renderCards();refreshBudgetCartoes();return;}
+  if(item.groupId){
+    const future=all.filter(g=>g.groupId===item.groupId&&(g.date||'')>=(item.date||'')&&g.id!==item.id);
+    if(future.length>0){
+      showConfirm('Remover parcela','Este gasto faz parte de uma série.',[
+        {label:'Remover só esta',cls:'btn-ghost',action:async()=>{
+          await gastosDel(id);toast('Parcela removida','var(--red)');
+          renderCards();refreshBudgetCartoes();
+        }},
+        {label:'Esta e seguintes ('+( future.length+1)+')',cls:'btn-danger',action:async()=>{
+          await gastosDel(id);
+          for(const g of future)await gastosDel(g.id);
+          toast('Parcelas removidas','var(--red)');renderCards();refreshBudgetCartoes();
+        }},
+        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+      ]);
+      return;
+    }
+  }
   if(!confirm('Remover este gasto?'))return;
-  await gastosDel(id);
-  toast('Gasto removido','var(--red)');
+  await gastosDel(id);toast('Gasto removido','var(--red)');
   renderCards();refreshBudgetCartoes();
 }
 
-
-async function editGasto(cartaoId, gastoId){
-  const [cartoes, gastos] = await Promise.all([cartoesAll(), gastosAll()]);
-  const cartao = cartoes.find(c=>c.id===cartaoId);
-  const gasto = gastos.find(g=>g.id===gastoId);
-  if(cartao && gasto) showAddGastoModal(cartaoId, cartao, gasto);
-}
-async function editCartao(cartaoId){
-  const cartoes = await cartoesAll();
-  const cartao = cartoes.find(c=>c.id===cartaoId);
-  if(cartao) showAddCartaoModal(cartao);
-}
 /* ── RENDER CARDS PAGE ── */
 async function renderCards(){
   const cartoes=await cartoesAll();
@@ -1986,7 +2033,7 @@ async function renderProj(){
       <span class="proj-month-name">${MONTHS[m].substring(0,3)} ${y}${isNow?' <span style="font-size:10px;color:var(--blue)"> atual</span>':''}</span>
       <div class="proj-vals">
         <span style="color:var(--green)">${fmt(income)}</span>
-        <span style="color:var(--red)">${fmt(expense)}</span>
+        <span style="color:var(--red)">${fmt(expense+credit)}</span>
         <span class="proj-balance" style="color:${bColor}">${totBalance>=0&&balance>=0?'+':'-'}${fmt(balance)}</span>
       </div>
     </div>`;
@@ -2174,10 +2221,13 @@ async function toggleBudgetDone(budgetId){
       const total=gastosFatura.reduce((s,g)=>s+g.value,0);
       const vencDate=getFaturaVencimento(curYear,curMonth,cartao);
       const obsLines=gastosFatura.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+      // Build subitems from gastos for display in txCard
+      const txSubitems=gastosFatura.map(g=>({name:g.name,value:g.value}));
       const txId=await dbAdd({
         name:'Fatura '+cartao.name,value:total,type:'credit',
         month:curMonth,year:curYear,ym:ym(curYear,curMonth),
-        date:vencDate,obs:obsLines,pessoaId:cartao.pessoaId||null,
+        date:vencDate,obs:obsLines,subitems:txSubitems,
+        pessoaId:cartao.pessoaId||null,
         fromBudget:true,fromCartao:cartaoId,createdAt:Date.now()
       });
       await donePut({key,budgetId,txId,doneAt:Date.now()});
@@ -2289,7 +2339,7 @@ async function renderBudget(){
             ${item.dueDay?'<span style="white-space:nowrap">📅 Vence dia '+item.dueDay+'</span>':''}
             ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
             ${pessoa?'<span class="person-tag" style="white-space:nowrap">'+personAvatarHtml(pessoa,14)+' '+pessoa.nome+'</span>':''}
-            ${item.obs?'<span style="font-size:10px;color:var(--text3)">'+item.obs+'</span>':''}
+            ${item._gastos&&item._gastos.length?renderSubitemsHtml(item._gastos.map(g=>({name:g.name,value:g.value}))):''}
           </div>
         </div>
         <div class="budget-right">

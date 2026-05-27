@@ -415,6 +415,7 @@ select option{background:var(--bg3)}
       <button onclick="changeMonth(1)">›</button>
     </div>
   </div>
+  <div id="person-filter-bar-budget"></div>
   <div class="card" id="budget-summary-card" style="display:none">
     <div id="budget-progress" class="budget-progress"><div id="budget-progress-fill" class="budget-progress-fill" style="width:0%"></div></div>
     <div id="budget-summary-text"></div>
@@ -861,7 +862,7 @@ function getSelectedPessoa(containerId){
 // Person filter bars
 async function renderPersonFilterBars(){
   const pessoas=await pessoasAll();
-  ['dash','tx'].forEach(page=>{
+  ['dash','tx','budget'].forEach(page=>{
     const el=document.getElementById('person-filter-bar-'+page);
     if(!el)return;
     if(!pessoas.length){el.innerHTML='';return;}
@@ -1565,7 +1566,7 @@ function entryFormHtml(t=null){
     <div class="form-grid">
       <div class="form-group">
         <label>Tipo</label>
-        <select id="f-type" onchange="onTypeChange()">
+        <select id="f-type" onchange="onTypeChange()" ${(isEdit&&(t?.fromBudget||t?.fromCartao))?'disabled':''}>
           <option value="income"${defType==='income'?' selected':''}>💵 Receita</option>
           <option value="fixed"${defType==='fixed'?' selected':''}>🏠 Despesa Fixa</option>
           <option value="variable"${defType==='variable'?' selected':''}>🛒 Despesa Variável</option>
@@ -2296,7 +2297,32 @@ async function saveBudgetEdit(id){
   const existing=all.find(x=>x.id===id);
   if(!existing)return;
   if(recurrence==='installments'&&installmentTotal>1){
-    // Delete existing item and create N installment items
+    // If converting from once/always to installments, ask for confirmation
+    if(existing.recurrence!=='installments'){
+      closeModal();
+      showConfirm('Transformar em parcelas?','O item atual será removido e '+(installmentTotal-installmentCur+1)+' parcelas serão criadas a partir deste mês.',[
+        {label:'Confirmar',cls:'btn-primary',action:async()=>{
+          await budgetDel(id);
+          const newBGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+          for(let i=installmentCur-1;i<installmentTotal;i++){
+            const label=name.replace(/\s+\d+\/\d+$/,'').trim()+' '+(i+1)+'/'+installmentTotal;
+            const mOffset=i-(installmentCur-1);
+            const rawM=curMonth+mOffset;
+            await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+              pessoaId:bPessoaId,recurrence:'once',groupId:newBGroupId,
+              installmentCur:i+1,installmentTotal,
+              budgetMonth:(rawM%12+12)%12,
+              budgetYear:curYear+Math.floor(rawM/12),
+              createdAt:Date.now()});
+          }
+          toast(installmentTotal-installmentCur+1+' parcelas criadas!','var(--teal)');
+          renderBudget();
+        }},
+        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+      ]);
+      return;
+    }
+    // Already installments - rebuild series (existing logic)
     await budgetDel(id);
     const newBGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
     for(let i=installmentCur-1;i<installmentTotal;i++){
@@ -2362,8 +2388,8 @@ async function saveBudgetEdit(id){
   }else{
     await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
       pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,
-      budgetMonth:recurrence==='once'?curMonth:null,
-      budgetYear:recurrence==='once'?curYear:null});
+      budgetMonth:recurrence==='once'?(existing.budgetMonth!=null?existing.budgetMonth:curMonth):null,
+      budgetYear:recurrence==='once'?(existing.budgetYear!=null?existing.budgetYear:curYear):null});
     toast('Item atualizado!','var(--teal)');
     closeModal();renderBudget();
   }
@@ -2476,7 +2502,7 @@ async function renderBudget(){
   try{
   const allBudgetItems=await budgetAll();
   // Filter manual items by recurrence logic
-  const manualItems=allBudgetItems.filter(item=>{
+  const manualItemsBeforePessoa=allBudgetItems.filter(item=>{
     const rec=item.recurrence||'always';
     if(rec==='always')return true; // fixed/income always show
     if(rec==='once'){
@@ -2499,11 +2525,17 @@ async function renderBudget(){
     }
     return true;
   });
+  // Apply pessoa filter to manual items
+  const manualItems=pessoaFilter?manualItemsBeforePessoa.filter(item=>item.pessoaId===pessoaFilter):manualItemsBeforePessoa;
   // Add cartao virtual items safely (cartoes store may not exist yet)
   let cartaoForMonth=[];
   try{
     const cartaoVirtualItems=await getCartaoBudgetItems(curMonth,curYear);
-    cartaoForMonth=cartaoVirtualItems.filter(ci=>ci.faturaMonth===curMonth&&ci.faturaYear===curYear);
+    cartaoForMonth=cartaoVirtualItems.filter(ci=>{
+      if(ci.faturaMonth!==curMonth||ci.faturaYear!==curYear)return false;
+      if(pessoaFilter&&ci.pessoaId!==pessoaFilter)return false;
+      return true;
+    });
   }catch(e){console.warn('Cartoes store not ready:',e);}
   const items=[...manualItems,...cartaoForMonth];
   const doneList=await doneAllForMonth(curYear,curMonth);

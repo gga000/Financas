@@ -399,10 +399,7 @@ select option{background:var(--bg3)}
     <div id="proj-list"></div>
     <div id="proj-total" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
   </div>
-  <div class="card">
-    <div class="card-title">Parcelas futuras de cartão</div>
-    <div id="parcelas-list" class="tx-list"></div>
-  </div>
+
 </div>
 
 <!-- ORÇAMENTO -->
@@ -1179,10 +1176,16 @@ async function saveGastoEdit(id){
   const date=document.getElementById('cg-date')?.value||todayISO();
   const obs=document.getElementById('cg-obs')?.value.trim()||'';
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
+  const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
+  const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
+  const parcela=parcelado?parseInt(document.getElementById('cg-pnum')?.value)||1:null;
+  const totalParcelas=parcelado?parseInt(document.getElementById('cg-ptotal')?.value)||1:null;
   const all=await gastosAll();
   const existing=all.find(g=>g.id===id);
   if(!existing)return;
-  await gastosPut({...existing,name,value:val,date,obs});
+  await gastosPut({...existing,name,value:val,rawExpr:cgRawExpr,date,obs,
+    parcela:parcela||existing.parcela||null,
+    totalParcelas:totalParcelas||existing.totalParcelas||null});
   toast('Gasto atualizado!');
   closeModal();renderCards();refreshBudgetCartoes();
 }
@@ -1194,6 +1197,18 @@ async function deleteGasto(id){
   renderCards();refreshBudgetCartoes();
 }
 
+
+async function editGasto(cartaoId, gastoId){
+  const [cartoes, gastos] = await Promise.all([cartoesAll(), gastosAll()]);
+  const cartao = cartoes.find(c=>c.id===cartaoId);
+  const gasto = gastos.find(g=>g.id===gastoId);
+  if(cartao && gasto) showAddGastoModal(cartaoId, cartao, gasto);
+}
+async function editCartao(cartaoId){
+  const cartoes = await cartoesAll();
+  const cartao = cartoes.find(c=>c.id===cartaoId);
+  if(cartao) showAddCartaoModal(cartao);
+}
 /* ── RENDER CARDS PAGE ── */
 async function renderCards(){
   const cartoes=await cartoesAll();
@@ -1226,7 +1241,7 @@ async function renderCards(){
           ${pessoa?'<div style="margin-top:3px">'+personAvatarHtml(pessoa,14)+' <span style="font-size:11px;color:var(--text3)">'+pessoa.nome+'</span></div>':''}
         </div>
         <div style="display:flex;gap:6px">
-          <button class="tx-btn edit" onclick="showAddCartaoModal(${JSON.stringify(cartao).replace(/"/g,'&quot;')})">✏️</button>
+          <button class="tx-btn edit" onclick="editCartao(${cartao.id})">✏️</button>
           <button class="tx-btn del" onclick="deleteCartao(${cartao.id})">✕</button>
         </div>
       </div>
@@ -1247,7 +1262,7 @@ async function renderCards(){
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div class="card-gasto-val">-${fmt(g.value)}</div>
-            <button class="tx-btn edit" onclick="showAddGastoModal(${cartao.id},${JSON.stringify(cartao).replace(/"/g,'&quot;')},${JSON.stringify(g).replace(/"/g,'&quot;')})">✏️</button>
+            <button class="tx-btn edit" onclick="editGasto(${cartao.id},${g.id})">✏️</button>
             <button class="tx-btn del" onclick="deleteGasto(${g.id})">✕</button>
           </div>
         </div>`).join(''):''}
@@ -1538,7 +1553,7 @@ function entryFormHtml(t=null){
       <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
       <textarea id="f-obs" placeholder="Detalhes, itens agrupados...">${defObs}</textarea>
     </div>
-    <div id="area-recur" style="${defType==='credit'?'display:none':''}">
+    <div id="area-recur" style="${(defType==='credit'||(isEdit&&(t?.fromBudget||t?.fromCartao)))?'display:none':''}">
       <div class="form-group">
         <label>Repetição</label>
         <select id="f-recur" onchange="onRecurChange()">
@@ -1963,8 +1978,8 @@ async function renderProj(){
   let html='',totIncome=0,totExpense=0,totBalance=0;
   for(let i=0;i<projPeriods;i++){
     const m=(curMonth+i)%12,y=curYear+Math.floor((curMonth+i)/12);
-    const{income,expense,balance}=calcMonth(all,y,m);
-    totIncome+=income;totExpense+=expense;totBalance+=balance;
+    const{income,expense,credit,balance}=calcMonth(all,y,m);
+    totIncome+=income;totExpense+=expense+credit;totBalance+=balance;
     const bColor=balance>=0?'var(--green)':'var(--red)';
     const isNow=m===curMonth&&y===curYear;
     html+=`<div class="proj-row" style="${isNow?'border-color:var(--blue);background:var(--blue-bg)':''}">
@@ -1987,18 +2002,7 @@ async function renderProj(){
         <span style="color:${totColor};min-width:80px;text-align:right">${totBalance>=0?'+':'-'}${fmt(totBalance)}</span>
       </div>
     </div>`;
-  const now=ym(curYear,curMonth);
-  const future=all.filter(t=>t.type==='credit'&&ym(t.year,t.month)>now).sort((a,b)=>ym(a.year,a.month)-ym(b.year,b.month));
-  document.getElementById('parcelas-list').innerHTML=future.length
-    ?future.slice(0,30).map(t=>`<div class="tx-item">
-        <div class="tx-icon credit">${ICONS.credit}</div>
-        <div class="tx-info">
-          <div class="tx-name">${t.name}</div>
-          <div class="tx-meta">${MONTHS[t.month]} ${t.year}${t.date?' · 📅 Venc. '+fmtDate(t.date):''}${t.obs?' · 💬 '+t.obs:''}</div>
-        </div>
-        <div class="tx-right"><div class="tx-val expense">-${fmt(t.value)}</div></div>
-      </div>`).join('')
-    :`<div class="empty"><div class="empty-icon">💳</div>Nenhuma parcela futura cadastrada.</div>`;
+
 }
 
 /* ── BUDGET CRUD ── */

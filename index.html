@@ -2068,6 +2068,22 @@ async function renderProj(){
 }
 
 /* ── BUDGET CRUD ── */
+
+function onBudgetTypeChange(){
+  const t=document.getElementById('b-type')?.value;
+  const recArea=document.getElementById('b-recurrence-area');
+  if(recArea)recArea.style.display=t==='variable'?'block':'none';
+  const hint=document.getElementById('b-type-hint');
+  if(hint){
+    if(t==='fixed'||t==='income')hint.textContent='Aparece automaticamente em todos os meses';
+    else hint.textContent='';
+  }
+}
+function onBudgetRecurChange(){
+  const v=document.getElementById('b-recur')?.value;
+  const instArea=document.getElementById('b-installments-area');
+  if(instArea)instArea.style.display=v==='installments'?'block':'none';
+}
 function getBudgetVal(){
   const inp=document.getElementById('b-val');
   const fieldVal=(inp?.value||'').trim();
@@ -2135,15 +2151,38 @@ function showBudgetAddModal(item=null){
     <div class="form-grid">
       <div class="form-group">
         <label>Tipo</label>
-        <select id="b-type">
+        <select id="b-type" onchange="onBudgetTypeChange()">
           <option value="income"${item?.type==='income'?' selected':''}>💵 Receita</option>
           <option value="fixed"${(!item||item?.type==='fixed')?' selected':''}>🏠 Despesa Fixa</option>
           <option value="variable"${item?.type==='variable'?' selected':''}>🛒 Variável</option>
         </select>
+        <div id="b-type-hint" class="hint" style="margin-top:4px"></div>
       </div>
       <div class="form-group">
         <label>Vencimento (dia)</label>
-        <input id="b-day" type="number" min="1" max="31" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}">
+        <input id="b-day" type="text" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}">
+      </div>
+    </div>
+    <div id="b-recurrence-area" style="${item?.type==='variable'?'':'display:none'}">
+      <div class="form-group">
+        <label>Recorrência</label>
+        <select id="b-recur" onchange="onBudgetRecurChange()">
+          <option value="once" ${item?.recurrence==='once'||!item?.recurrence&&item?.type==='variable'?'selected':''}>Único (só este mês)</option>
+          <option value="installments" ${item?.recurrence==='installments'?'selected':''}>Parcelado (N meses)</option>
+        </select>
+      </div>
+      <div id="b-installments-area" style="${item?.recurrence==='installments'?'':'display:none'}">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Parcela atual</label>
+            <input id="b-inst-cur" type="text" inputmode="numeric" placeholder="1" value="${isEdit&&item.installmentCur?item.installmentCur:'1'}">
+          </div>
+          <div class="form-group">
+            <label>Total de parcelas</label>
+            <input id="b-inst-total" type="text" inputmode="numeric" placeholder="Ex: 6" value="${isEdit&&item.installmentTotal?item.installmentTotal:''}">
+          </div>
+        </div>
+        <div class="hint">Aparece como "descrição N/M" em cada mês</div>
       </div>
     </div>
     <div class="form-group">
@@ -2170,6 +2209,15 @@ function showBudgetAddModal(item=null){
     </div>`);
   setTimeout(()=>{
     renderPessoaChips('b-pessoa-chips',isEdit?item.pessoaId||null:null);
+    if(isEdit){
+      // Restore recurrence UI
+      const recArea=document.getElementById('b-recurrence-area');
+      if(recArea)recArea.style.display=item.type==='variable'?'block':'none';
+      const recurSel=document.getElementById('b-recur');
+      if(recurSel&&item.recurrence)recurSel.value=item.recurrence;
+      const instArea=document.getElementById('b-installments-area');
+      if(instArea)instArea.style.display=item.recurrence==='installments'?'block':'none';
+    }
     if(isEdit&&item.rawExpr){
       const inp=document.getElementById('b-val');
       if(inp){
@@ -2186,6 +2234,19 @@ function showBudgetAddModal(item=null){
     }
   },50);
 }
+function getBudgetRecurrence(){
+  const type=document.getElementById('b-type')?.value;
+  if(type==='fixed'||type==='income')return{recurrence:'always',installmentCur:null,installmentTotal:null};
+  const recur=document.getElementById('b-recur')?.value||'once';
+  if(recur==='installments'){
+    return{
+      recurrence:'installments',
+      installmentCur:parseInt(document.getElementById('b-inst-cur')?.value)||1,
+      installmentTotal:parseInt(document.getElementById('b-inst-total')?.value)||1
+    };
+  }
+  return{recurrence:'once',installmentCur:null,installmentTotal:null};
+}
 async function saveBudgetItem(){
   const subitems=getSubitems();
   const name=document.getElementById('b-name')?.value.trim();
@@ -2195,9 +2256,26 @@ async function saveBudgetItem(){
   const obs=document.getElementById('b-obs')?.value.trim()||'';
   const bPessoaId=getSelectedPessoa('b-pessoa-chips');
   const bRawExpr=getBudgetRawExpr();
+  const{recurrence,installmentCur,installmentTotal}=getBudgetRecurrence();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
-  await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,pessoaId:bPessoaId,createdAt:Date.now()});
-  toast('Item adicionado!','var(--teal)');closeModal();renderBudget();
+  if(recurrence==='installments'&&installmentTotal>1){
+    // Create N installment items starting from installmentCur
+    for(let i=installmentCur-1;i<installmentTotal;i++){
+      const label=name+' '+(i+1)+'/'+installmentTotal;
+      await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+        pessoaId:bPessoaId,recurrence:'once',
+        installmentCur:i+1,installmentTotal,
+        budgetMonth:(curMonth+i-(installmentCur-1)+1200)%12,
+        budgetYear:curYear+Math.floor((curMonth+i-(installmentCur-1))/12),
+        createdAt:Date.now()});
+    }
+    toast(installmentTotal-installmentCur+1+' parcelas adicionadas!','var(--teal)');
+  }else{
+    await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+      pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,createdAt:Date.now()});
+    toast('Item adicionado!','var(--teal)');
+  }
+  closeModal();renderBudget();
 }
 async function saveBudgetEdit(id){
   const subitems=getSubitems();
@@ -2208,11 +2286,13 @@ async function saveBudgetEdit(id){
   const obs=document.getElementById('b-obs')?.value.trim()||'';
   const bPessoaId=getSelectedPessoa('b-pessoa-chips');
   const bRawExpr=getBudgetRawExpr();
+  const{recurrence,installmentCur,installmentTotal}=getBudgetRecurrence();
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
   const all=await budgetAll();
   const existing=all.find(x=>x.id===id);
   if(!existing)return;
-  await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,pessoaId:bPessoaId});
+  await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+    pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal});
   toast('Item atualizado!','var(--teal)');closeModal();renderBudget();
 }
 
@@ -2297,7 +2377,31 @@ async function deleteBudgetItem(id){
 /* ── BUDGET ── */
 async function renderBudget(){
   try{
-  const manualItems=await budgetAll();
+  const allBudgetItems=await budgetAll();
+  // Filter manual items by recurrence logic
+  const manualItems=allBudgetItems.filter(item=>{
+    const rec=item.recurrence||'always';
+    if(rec==='always')return true; // fixed/income always show
+    if(rec==='once'){
+      // Show only in specific month - use budgetMonth/budgetYear if set
+      if(item.budgetMonth!=null&&item.budgetYear!=null){
+        // Normalize budgetMonth for multi-month offsets
+        const totalMonths=item.budgetYear*12+item.budgetMonth;
+        const curTotalMonths=curYear*12+curMonth;
+        return totalMonths===curTotalMonths;
+      }
+      return true; // backward compat: no month stored, always show
+    }
+    if(rec==='installments'){
+      if(item.budgetMonth!=null&&item.budgetYear!=null){
+        const totalMonths=item.budgetYear*12+item.budgetMonth;
+        const curTotalMonths=curYear*12+curMonth;
+        return totalMonths===curTotalMonths;
+      }
+      return true;
+    }
+    return true;
+  });
   // Add cartao virtual items safely (cartoes store may not exist yet)
   let cartaoForMonth=[];
   try{
@@ -2371,6 +2475,8 @@ async function renderBudget(){
         <div class="budget-name">${item.name}</div>
         <div class="budget-meta">
           <span style="white-space:nowrap">${CAT_LABELS[item.type]||''}</span>
+          ${item.recurrence==='always'||item.type==='fixed'||item.type==='income'?'<span class="badge badge-blue" style="white-space:nowrap">fixo</span>':''}
+          ${item.recurrence==='installments'&&item.installmentCur?'<span class="badge badge-amber" style="white-space:nowrap">'+item.installmentCur+'/'+item.installmentTotal+'</span>':''}
           ${item.dueDay?`<span style="white-space:nowrap">📅 Dia ${item.dueDay}</span>`:''}
           ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
           ${item._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}

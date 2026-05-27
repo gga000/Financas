@@ -1041,6 +1041,27 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
     </div>
     <div id="cg-fatura-preview" style="font-size:12px;color:var(--blue);margin-top:-6px;margin-bottom:10px;min-height:16px"></div>
     <div class="form-group">
+      <label>Parcelas <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <label class="toggle" style="flex-shrink:0">
+          <input type="checkbox" id="cg-parcela-toggle" onchange="toggleGastoParcela(this.checked)" ${isEdit&&gasto.totalParcelas>1?'checked':''}>
+          <div class="toggle-track"></div><div class="toggle-thumb"></div>
+        </label>
+        <span style="font-size:13px;color:var(--text2)">Parcelar compra</span>
+      </div>
+      <div id="cg-parcela-area" style="${isEdit&&gasto.totalParcelas>1?'display:block':'display:none'};margin-top:10px">
+        <div class="form-grid">
+          <div class="form-group"><label>Parcela atual</label>
+            <input id="cg-pnum" type="text" inputmode="numeric" placeholder="1" value="${isEdit&&gasto.parcela?gasto.parcela:'1'}">
+          </div>
+          <div class="form-group"><label>Total de parcelas</label>
+            <input id="cg-ptotal" type="text" inputmode="numeric" placeholder="Ex: 12" value="${isEdit&&gasto.totalParcelas?gasto.totalParcelas:''}">
+          </div>
+        </div>
+        <div class="hint">Valor informado = valor de cada parcela</div>
+      </div>
+    </div>
+    <div class="form-group">
       <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
       <textarea id="cg-obs" placeholder="Detalhes...">${isEdit?gasto.obs||'':''}</textarea>
     </div>
@@ -1120,6 +1141,11 @@ function getGastoVal(){
   return val;
 }
 
+
+function toggleGastoParcela(checked){
+  const area=document.getElementById('cg-parcela-area');
+  if(area)area.style.display=checked?'block':'none';
+}
 async function saveGasto(){
   const name=document.getElementById('cg-name')?.value.trim();
   const val=getGastoVal();
@@ -1128,8 +1154,22 @@ async function saveGasto(){
   const cartaoId=parseInt(document.getElementById('cg-cartao-id')?.value);
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
   const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
-await gastosAdd({name,value:val,rawExpr:cgRawExpr,date,obs,cartaoId,createdAt:Date.now()});
-  toast('Gasto adicionado!');
+  const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
+  const pnum=parseInt(document.getElementById('cg-pnum')?.value)||1;
+  const ptotal=parseInt(document.getElementById('cg-ptotal')?.value)||1;
+  if(parcelado&&ptotal>1){
+    if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return;}
+    let d=date;
+    for(let i=pnum-1;i<ptotal;i++){
+      const label=name+' '+(i+1)+'/'+ptotal;
+      await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,cartaoId,parcela:i+1,totalParcelas:ptotal,createdAt:Date.now()});
+      const nd=addMonths(d,1);if(nd)d=nd;
+    }
+    toast((ptotal-pnum+1)+' parcelas adicionadas!','var(--purple)');
+  }else{
+    await gastosAdd({name,value:val,rawExpr:cgRawExpr,date,obs,cartaoId,createdAt:Date.now()});
+    toast('Gasto adicionado!');
+  }
   closeModal();renderCards();refreshBudgetCartoes();
 }
 
@@ -1512,7 +1552,7 @@ function entryFormHtml(t=null){
         <div class="hint">Inclui o período atual</div>
       </div>
     </div>
-    <div id="area-parcela" style="${defType==='credit'?'':'display:none'}">
+    <div id="area-parcela" style="display:none">
       <div class="form-grid">
         <div class="form-group"><label>Parcela atual</label><input id="f-pnum" type="number" value="1" min="1" inputmode="numeric"></div>
         <div class="form-group"><label>Total de parcelas</label><input id="f-ptotal" type="number" value="1" min="1" inputmode="numeric"></div>
@@ -1570,7 +1610,7 @@ async function openValNumpad(){
 
 function onTypeChange(){
   const t=document.getElementById('f-type').value;
-  document.getElementById('area-parcela').style.display=t==='credit'?'block':'none';
+  document.getElementById('area-parcela').style.display='none';
   document.getElementById('area-recur').style.display=t==='credit'?'none':'block';
 }
 function onRecurChange(){

@@ -55,7 +55,7 @@ body{min-height:100vh;padding-bottom:76px}
 .color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s;flex-shrink:0}
 .color-swatch.selected{border-color:var(--text)}
 /* PERSON FILTER BAR */
-#person-filter-bar-dash,#person-filter-bar-tx{display:flex;gap:6px;margin:12px 0;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#person-filter-bar-dash,#person-filter-bar-tx,#person-filter-bar-budget{display:flex;gap:6px;margin:12px 0;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 #person-filter-bar::-webkit-scrollbar{display:none}
 .person-filter-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);font-weight:500;display:inline-flex;align-items:center;gap:5px}
 .person-filter-btn.active{border-color:currentColor;font-weight:600}
@@ -370,7 +370,7 @@ select option{background:var(--bg3)}
     <button class="tab" onclick="filterTx('income',this)">Receitas</button>
     <button class="tab" onclick="filterTx('fixed',this)">Fixas</button>
     <button class="tab" onclick="filterTx('variable',this)">Variáveis</button>
-
+    <button class="tab" onclick="filterTx('credit',this)">💳 Cartão</button>
   </div>
   <div id="person-filter-bar-tx"></div>
   <div id="tx-list" class="tx-list"></div>
@@ -415,7 +415,7 @@ select option{background:var(--bg3)}
       <button onclick="changeMonth(1)">›</button>
     </div>
   </div>
-  <div id="person-filter-bar-budget"></div>
+  <div id="person-filter-bar-budget" style="margin:12px 0"></div>
   <div class="card" id="budget-summary-card" style="display:none">
     <div id="budget-progress" class="budget-progress"><div id="budget-progress-fill" class="budget-progress-fill" style="width:0%"></div></div>
     <div id="budget-summary-text"></div>
@@ -1570,7 +1570,7 @@ function entryFormHtml(t=null){
           <option value="income"${defType==='income'?' selected':''}>💵 Receita</option>
           <option value="fixed"${defType==='fixed'?' selected':''}>🏠 Despesa Fixa</option>
           <option value="variable"${defType==='variable'?' selected':''}>🛒 Despesa Variável</option>
-          <option value="credit"${defType==='credit'?' selected':''}>💳 Fatura cartão</option>
+          ${(isEdit&&(t?.fromBudget||t?.fromCartao))?'<option value="credit" selected>💳 Fatura cartão</option>':''}
         </select>
       </div>
       <div class="form-group">

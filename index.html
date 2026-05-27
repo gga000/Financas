@@ -2260,6 +2260,7 @@ async function saveBudgetItem(){
   if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
   if(recurrence==='installments'&&installmentTotal>1){
     // Create N installment items starting from installmentCur
+        const bGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
     for(let i=installmentCur-1;i<installmentTotal;i++){
       const label=name+' '+(i+1)+'/'+installmentTotal;
       await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
@@ -2297,26 +2298,74 @@ async function saveBudgetEdit(id){
   if(recurrence==='installments'&&installmentTotal>1){
     // Delete existing item and create N installment items
     await budgetDel(id);
+    const newBGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
     for(let i=installmentCur-1;i<installmentTotal;i++){
       const label=name.replace(/\s+\d+\/\d+$/,'').trim()+' '+(i+1)+'/'+installmentTotal;
       const mOffset=i-(installmentCur-1);
       const rawM=curMonth+mOffset;
       await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
-        pessoaId:bPessoaId,recurrence:'once',
+        pessoaId:bPessoaId,recurrence:'once',groupId:newBGroupId,
         installmentCur:i+1,installmentTotal,
         budgetMonth:(rawM%12+12)%12,
         budgetYear:curYear+Math.floor(rawM/12),
         createdAt:Date.now()});
     }
     toast(installmentTotal-installmentCur+1+' parcelas criadas!','var(--teal)');
+  }else if(existing.groupId&&recurrence!=='installments'){
+    // Part of a series - offer series edit
+    const allBuds=await budgetAll();
+    // future = same group, budgetMonth >= this item's budgetMonth
+    const thisTotal=existing.budgetYear*12+existing.budgetMonth;
+    const future=allBuds.filter(b=>b.groupId===existing.groupId&&
+      b.id!==existing.id&&(b.budgetYear*12+b.budgetMonth)>thisTotal);
+    if(future.length>0){
+      closeModal();
+      showConfirm('Editar parcela do orçamento','Esta parcela faz parte de uma série.',[
+        {label:'Apenas esta',cls:'btn-ghost',action:async()=>{
+          await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+            pessoaId:bPessoaId,recurrence:'once',
+            budgetMonth:existing.budgetMonth,budgetYear:existing.budgetYear});
+          toast('Parcela atualizada!','var(--teal)');renderBudget();
+        }},
+        {label:'Esta e seguintes',cls:'btn-primary',action:async()=>{
+          await budgetDel(existing.id);
+          for(const b of future) await budgetDel(b.id);
+          const newG=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+          const remaining=future.length+1;
+          const startInst=existing.installmentCur||1;
+          const totalInst=existing.installmentTotal||remaining;
+          const baseName2=(name).replace(/\s+\d+\/\d+$/,'').trim();
+          let rawM2=(existing.budgetYear*12+existing.budgetMonth)-(curYear*12+curMonth);
+          const baseYM=existing.budgetYear*12+existing.budgetMonth;
+          for(let i=0;i<remaining;i++){
+            const ym2=baseYM+i;
+            const bm=(ym2%12+12)%12;
+            const by=Math.floor(ym2/12);
+            const label2=baseName2+' '+(startInst+i)+'/'+totalInst;
+            await budgetAdd({name:label2,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+              pessoaId:bPessoaId,recurrence:'once',groupId:newG,
+              installmentCur:startInst+i,installmentTotal:totalInst,
+              budgetMonth:bm,budgetYear:by,createdAt:Date.now()});
+          }
+          toast('Série atualizada!','var(--teal)');renderBudget();
+        }},
+        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+      ]);
+      return;
+    }
+    await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+      pessoaId:bPessoaId,recurrence:'once',
+      budgetMonth:existing.budgetMonth,budgetYear:existing.budgetYear});
+    toast('Item atualizado!','var(--teal)');
+    closeModal();renderBudget();
   }else{
     await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
       pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,
       budgetMonth:recurrence==='once'?curMonth:null,
       budgetYear:recurrence==='once'?curYear:null});
     toast('Item atualizado!','var(--teal)');
+    closeModal();renderBudget();
   }
-  closeModal();renderBudget();
 }
 
 
@@ -2384,16 +2433,40 @@ async function toggleBudgetDone(budgetId){
 }
 
 async function deleteBudgetItem(id){
+  const allBuds=await budgetAll();
+  const item=allBuds.find(b=>b.id===id);
+  async function delOne(bid){
+    await budgetDel(bid);
+    await new Promise(res=>{
+      const t=db.transaction('budgetDone','readwrite');
+      const store=t.objectStore('budgetDone');
+      store.getAll().onsuccess=e=>{
+        (e.target.result||[]).filter(r=>r.budgetId===bid).forEach(r=>store.delete(r.key));
+        res();
+      };
+    });
+  }
+  if(item&&item.groupId){
+    const thisTotal=item.budgetYear*12+item.budgetMonth;
+    const future=allBuds.filter(b=>b.groupId===item.groupId&&
+      b.id!==id&&(b.budgetYear*12+b.budgetMonth)>thisTotal);
+    if(future.length>0){
+      showConfirm('Remover parcela do orçamento','Esta parcela faz parte de uma série.',[
+        {label:'Remover só esta',cls:'btn-ghost',action:async()=>{
+          await delOne(id);toast('Parcela removida','var(--red)');renderBudget();
+        }},
+        {label:'Esta e seguintes ('+( future.length+1)+')',cls:'btn-danger',action:async()=>{
+          await delOne(id);
+          for(const b of future)await delOne(b.id);
+          toast('Parcelas removidas','var(--red)');renderBudget();
+        }},
+        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+      ]);
+      return;
+    }
+  }
   if(!confirm('Remover este item do orçamento? Os lançamentos já realizados serão mantidos.'))return;
-  await budgetDel(id);
-  await new Promise(res=>{
-    const t=db.transaction('budgetDone','readwrite');
-    const store=t.objectStore('budgetDone');
-    store.getAll().onsuccess=e=>{
-      (e.target.result||[]).filter(r=>r.budgetId===id).forEach(r=>store.delete(r.key));
-      res();
-    };
-  });
+  await delOne(id);
   toast('Item removido','var(--red)');renderBudget();
 }
 

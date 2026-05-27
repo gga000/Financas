@@ -2311,6 +2311,7 @@ async function saveBudgetEdit(id){
         createdAt:Date.now()});
     }
     toast(installmentTotal-installmentCur+1+' parcelas criadas!','var(--teal)');
+    closeModal();renderBudget();
   }else if(existing.groupId&&recurrence!=='installments'){
     // Part of a series - offer series edit
     const allBuds=await budgetAll();

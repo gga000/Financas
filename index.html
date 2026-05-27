@@ -230,7 +230,7 @@ select option{background:var(--bg3)}
 .tx-subtoggle{font-size:11px;color:var(--blue);margin-top:6px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .tx-subitems{margin-top:8px;border-top:1px dashed var(--border);padding-top:8px;display:none}
 .tx-subitems.open{display:block!important}
-.tx-subitem{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:3px 0;font-family:var(--mono)}
+.tx-subitem{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--text2);padding:3px 0;font-family:var(--mono)}
 .subitem-row{display:grid;grid-template-columns:1fr 90px 32px;gap:8px;margin-bottom:8px;align-items:center}
 .subitem-remove{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;height:38px;cursor:pointer}
 
@@ -2226,7 +2226,7 @@ async function toggleBudgetDone(budgetId){
       const txId=await dbAdd({
         name:'Fatura '+cartao.name,value:total,type:'credit',
         month:curMonth,year:curYear,ym:ym(curYear,curMonth),
-        date:vencDate,obs:obsLines,subitems:txSubitems,
+        date:vencDate,obs:'',subitems:txSubitems,
         pessoaId:cartao.pessoaId||null,
         fromBudget:true,fromCartao:cartaoId,createdAt:Date.now()
       });

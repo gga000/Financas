@@ -1206,9 +1206,11 @@ async function saveGastoEdit(id){
           const remaining=parcelado?ptotal-pnum+1:existing.totalParcelas-(existing.parcela||1)+1;
           const startParcela=parcelado?pnum:(existing.parcela||1);
           const newTotal=parcelado?ptotal:existing.totalParcelas;
+          // Strip any existing "N/M" suffix from name before relabeling
+          const baseName=name.replace(/\s+\d+\/\d+$/, '').trim();
           let d=date;
           for(let i=0;i<remaining;i++){
-            const label=name+' '+(startParcela+i)+'/'+(newTotal||remaining);
+            const label=baseName+' '+(startParcela+i)+'/'+(newTotal||remaining);
             await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,
               cartaoId:existing.cartaoId,parcela:startParcela+i,
               totalParcelas:newTotal||remaining,groupId:newGroupId,createdAt:Date.now()});

@@ -1256,6 +1256,19 @@ async function deleteGasto(id){
   renderCards();refreshBudgetCartoes();
 }
 
+async function editGasto(cartaoId, gastoId){
+  const cartoes=await cartoesAll();
+  const gastos=await gastosAll();
+  const cartao=cartoes.find(c=>c.id===cartaoId);
+  const gasto=gastos.find(g=>g.id===gastoId);
+  if(cartao&&gasto)showAddGastoModal(cartaoId,cartao,gasto);
+}
+async function editCartao(cartaoId){
+  const cartoes=await cartoesAll();
+  const cartao=cartoes.find(c=>c.id===cartaoId);
+  if(cartao)showAddCartaoModal(cartao);
+}
+
 /* ── RENDER CARDS PAGE ── */
 async function renderCards(){
   const cartoes=await cartoesAll();

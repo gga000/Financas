@@ -1771,6 +1771,23 @@ function getRawSubitems(){
   }).filter(Boolean);
 }
 
+// Retorna os subitems ativos para um dado mes/ano, com label 'Nome X/N' quando repeat
+function getActiveSubitems(subitems, startMonth, startYear, curM, curY){
+  if(!subitems||!subitems.length)return[];
+  const elapsed=(curY*12+curM)-(startYear*12+startMonth);
+  const result=[];
+  subitems.forEach(s=>{
+    const rep=s.repeat; // undefined/0=fixo, N>=1=limitado
+    if(rep==null||rep===0||rep===undefined){
+      result.push({name:s.name,value:s.value}); // fixo
+    } else if(elapsed<rep){
+      const cur=elapsed+1;
+      result.push({name:s.name+' '+cur+'/'+rep,value:s.value});
+    }
+    // elapsed>=rep: subitem acabou, nao aparece
+  });
+  return result;
+}
 function updateSubitemsTotal(){
   const subs=getSubitems();
   const total=subs.reduce((s,i)=>s+i.value,0);
@@ -1839,21 +1856,15 @@ async function saveEntry(){
     }
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
   } else {
+    // item com subitems que tem repeat: salva 1 registro com subitems raw
     const rawSubs=getRawSubitems();
-    const maxRepeat=rawSubs.reduce((m,s)=>s.repeat>1?Math.max(m,s.repeat):m,0);
-    if(maxRepeat>0){
-      const serieId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-      let sm=month,sy=year,sd=date;
-      for(let i=0;i<maxRepeat;i++){
-        const monthSubs=rawSubs
-          .filter(s=>!s.repeat||s.repeat>i)
-          .map(s=>s.repeat&&s.repeat>1?{name:s.name+' '+(i+1)+'/'+s.repeat,value:s.value}:{name:s.name,value:s.value});
-        const monthVal=monthSubs.reduce((t,s)=>t+s.value,0)||val;
-        await dbAdd({name,value:monthVal,rawExpr:i===0?rawExpr:null,type,month:sm,year:sy,ym:ym(sy,sm),date:sd,paidDate,obs,subitems:monthSubs,pessoaId,groupId:serieId,recurring:true,createdAt:Date.now()});
-        sm++;if(sm>11){sm=0;sy++}
-        if(sd){const nd=addMonths(sd,1);if(nd)sd=nd;}
-      }
-      toast(maxRepeat+' lançamentos criados!','var(--teal)');
+    const hasSubRepeat=rawSubs.some(s=>s.repeat>=1);
+    if(hasSubRepeat){
+      await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,
+        subitems:rawSubs,pessoaId,
+        subRepeatStart:{month,year},
+        createdAt:Date.now()});
+      toast('Lançamento salvo!');
     }else{
       await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,subitems,pessoaId,createdAt:Date.now()});
       toast('Lançamento salvo!');
@@ -2022,7 +2033,14 @@ async function renderDash(){
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
     <div class="prog-labels"><span>${pct}% comprometido</span><span style="color:${barColor};font-weight:500">${pct<60?'✓ Saudável':pct<85?'⚠ Atenção':'✗ Alto'}</span></div>
   `;
-  const enrichedRows=rows.map(t=>({...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null}));
+  const enrichedRows=rows.map(t=>{
+    const base={...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null};
+    if(t.subRepeatStart&&t.subitems&&t.subitems.length){
+      const activeSubs=getActiveSubitems(t.subitems,t.subRepeatStart.month,t.subRepeatStart.year,t.month,t.year);
+      return {...base,subitems:activeSubs,value:activeSubs.length?activeSubs.reduce((s,x)=>s+x.value,0):t.value};
+    }
+    return base;
+  });
   const recent=[...enrichedRows].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id).slice(0,6);
   // pessoa summary card
   const pessoaSummaryEl=document.getElementById('pessoa-summary');
@@ -2063,7 +2081,14 @@ async function renderTx(){
   const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
   let rows=all.filter(t=>t.year===curYear&&t.month===curMonth);
   if(pessoaFilter)rows=rows.filter(t=>t.pessoaId===pessoaFilter);
-  rows=rows.map(t=>({...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null}));
+  rows=rows.map(t=>{
+    const base={...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null};
+    if(t.subRepeatStart&&t.subitems&&t.subitems.length){
+      const activeSubs=getActiveSubitems(t.subitems,t.subRepeatStart.month,t.subRepeatStart.year,t.month,t.year);
+      return {...base,subitems:activeSubs,value:activeSubs.length?activeSubs.reduce((s,x)=>s+x.value,0):t.value};
+    }
+    return base;
+  });
   const filtered=txFilter==='all'?rows:rows.filter(t=>t.type===txFilter);
   const sorted=[...filtered].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id);
   document.getElementById('tx-list').innerHTML=sorted.length
@@ -2345,23 +2370,14 @@ async function saveBudgetItem(){
     }
     toast(installmentTotal-installmentCur+1+' parcelas adicionadas!','var(--teal)');
   }else{
-    // subitens com repeat geram parcelas mensais
-    const maxRepeatB=subitems.reduce((m,s)=>s.repeat>1?Math.max(m,s.repeat):m,0);
-    if(maxRepeatB>0&&recurrence!=='installments'){
-      const bSerieId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-      for(let i=0;i<maxRepeatB;i++){
-        const rawM=curMonth+i;
-        const bm=(rawM%12+12)%12;
-        const by=curYear+Math.floor(rawM/12);
-        const mSubs=subitems
-          .filter(s=>!s.repeat||s.repeat>i)
-          .map(s=>s.repeat&&s.repeat>1?{name:s.name+' '+(i+1)+'/'+s.repeat,value:s.value}:{name:s.name,value:s.value});
-        const mVal=mSubs.reduce((t,s)=>t+s.value,0)||val;
-        await budgetAdd({name,value:mVal,rawExpr:i===0?bRawExpr:null,type,dueDay,dueMonthOffset,obs,subitems:mSubs,
-          pessoaId:bPessoaId,recurrence:'once',groupId:bSerieId,installmentCur:i+1,installmentTotal:maxRepeatB,
-          budgetMonth:bm,budgetYear:by,createdAt:Date.now()});
-      }
-      toast(maxRepeatB+' parcelas criadas!','var(--teal)');
+    // item fixo com subitems que tem repeat: salva 1 registro always com subitems raw
+    const hasSubRepeat=subitems.some(s=>s.repeat>=1);
+    if(hasSubRepeat&&recurrence!=='installments'){
+      await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+        pessoaId:bPessoaId,recurrence:'always',
+        subRepeatStart:{month:curMonth,year:curYear},
+        budgetMonth:null,budgetYear:null,createdAt:Date.now()});
+      toast('Item adicionado!','var(--teal)');
     }else{
       await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
         pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,
@@ -2656,7 +2672,15 @@ async function renderBudget(){
   }
   const pessoasBud=await pessoasAll();
   const pessoaMapBud=Object.fromEntries(pessoasBud.map(p=>[p.id,p]));
-  const enrichedItems=items.map(i=>({...i,_pessoa:i._pessoa||(i.pessoaId?pessoaMapBud[i.pessoaId]:null)}));
+  const enrichedItems=items.map(i=>{
+    const base={...i,_pessoa:i._pessoa||(i.pessoaId?pessoaMapBud[i.pessoaId]:null)};
+    if(i.subRepeatStart&&i.subitems&&i.subitems.length){
+      const activeSubs=getActiveSubitems(i.subitems,i.subRepeatStart.month,i.subRepeatStart.year,curMonth,curYear);
+      const activeVal=activeSubs.length?activeSubs.reduce((t,s)=>t+s.value,0):i.value;
+      return {...base,subitems:activeSubs,value:activeVal};
+    }
+    return base;
+  });
   const incomeItems=enrichedItems.filter(i=>i.type==='income');
   const expenseItems=enrichedItems.filter(i=>i.type!=='income');
   const totalIncome=incomeItems.reduce((s,i)=>s+i.value,0);
@@ -2714,7 +2738,7 @@ async function renderBudget(){
           <span style="white-space:nowrap;display:inline-flex;align-items:center;gap:5px">
             ${CAT_LABELS[item.type]||''}
             ${item.recurrence==='always'||item.type==='fixed'||item.type==='income'?'<span class="badge badge-blue">fixo</span>':''}
-            ${item.installmentCur&&item.installmentTotal?'<span class="badge badge-amber">'+item.installmentCur+'/'+item.installmentTotal+'</span>':''}
+            ${item.installmentCur&&item.installmentTotal&&!item.subRepeatStart?'<span class="badge badge-amber">'+item.installmentCur+'/'+item.installmentTotal+'</span>':''}
             ${item.dueDay?'<span style="color:var(--blue);font-size:10px">📅 '+String(item.dueDay).padStart(2,'0')+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
           </span>
           ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}

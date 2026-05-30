@@ -2386,7 +2386,16 @@ function showBudgetAddModal(item=null){
   },50);
   setTimeout(()=>{
     if(isEdit&&item.subitems?.length){
-      item.subitems.forEach(s=>addSubitem(s.name,s.value,s.repeat||0,s.sgid||'',s.skip||[]));
+      // calcular elapsed para filtrar subitems ja encerrados
+      const srs=item.subRepeatStart;
+      const elap=srs?(curYear*12+curMonth-(srs.year*12+srs.month)):0;
+      item.subitems.forEach(s=>{
+        const rep=s.repeat||0;
+        // fixo (rep=0): sempre mostra
+        // com repeat: so mostra se ainda tem parcelas restantes
+        if(rep>0&&elap>=rep)return; // ja acabou, nao restaura
+        addSubitem(s.name,s.value,rep,s.sgid||'',s.skip||[]);
+      });
     }
     // marcar modal com id do item editado e se tem subRepeatStart
     const modal=document.getElementById('modal-content');

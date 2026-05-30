@@ -2112,6 +2112,20 @@ function onBudgetValInput(){
   if(hasOp(raw)){const r=evalExpr(raw);prev.textContent=isNaN(r)?'⚠ inválido':'= '+fmt(r);prev.style.color=isNaN(r)?'var(--red)':'var(--green)';}
   else prev.textContent='';
 }
+function onBudgetDueOffsetChange(){
+  const day=parseInt(document.getElementById('b-day')?.value)||null;
+  const offset=parseInt(document.getElementById('b-due-offset')?.value)||0;
+  const prev=document.getElementById('b-due-preview');
+  if(!prev)return;
+  if(day){
+    const rawM=curMonth+offset;
+    const dm=(rawM%12+12)%12;
+    const dy=curYear+Math.floor(rawM/12);
+    prev.textContent='📅 Vence em '+String(Math.min(day,28)).padStart(2,'0')+'/'+MONTHS[dm].slice(0,3)+'/'+dy;
+  }else{
+    prev.textContent='';
+  }
+}
 async function openBudgetValNumpad(){
   const valInp=document.getElementById('b-val');
   const cur=valInp?.dataset?.rawExpr||valInp?.value||'';
@@ -2160,15 +2174,22 @@ function showBudgetAddModal(item=null){
         <div id="b-type-hint" class="hint" style="margin-top:4px"></div>
       </div>
       <div class="form-group">
-        <label>Vencimento</label>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input id="b-day" type="text" inputmode="numeric" placeholder="Dia (ex: 10)" value="${isEdit&&item.dueDay?item.dueDay:''}" style="flex:1;min-width:0">
-          <select id="b-due-offset" style="flex:1.4;min-width:0">
-            <option value="0"${!isEdit||!item.dueMonthOffset?' selected':''}>Mesmo mês</option>
-            <option value="1"${isEdit&&item.dueMonthOffset===1?' selected':''}>+1 mês</option>
-            <option value="2"${isEdit&&item.dueMonthOffset===2?' selected':''}>+2 meses</option>
-          </select>
+        <label>Vencimento <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:8px">
+          <div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Dia</div>
+            <input id="b-day" type="text" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}" style="text-align:center" oninput="onBudgetDueOffsetChange()">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Mês</div>
+            <select id="b-due-offset" onchange="onBudgetDueOffsetChange()">
+              <option value="0"${!isEdit||!item.dueMonthOffset?' selected':''}>${MONTHS[curMonth].slice(0,3)}/${String(curYear).slice(2)} (este mês)</option>
+              <option value="1"${isEdit&&item.dueMonthOffset===1?' selected':''}>${MONTHS[(curMonth+1)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+1)/12)).slice(2)} (+1 mês)</option>
+              <option value="2"${isEdit&&item.dueMonthOffset===2?' selected':''}>${MONTHS[(curMonth+2)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+2)/12)).slice(2)} (+2 meses)</option>
+            </select>
+          </div>
         </div>
+        <div id="b-due-preview" style="font-size:12px;color:var(--blue);margin-top:6px;min-height:16px"></div>
       </div>
     </div>
     <div id="b-recurrence-area" style="${item?.type==='variable'?'':'display:none'}">
@@ -2235,6 +2256,7 @@ function showBudgetAddModal(item=null){
         if(prev&&!isNaN(r)){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
       }
     }
+    onBudgetDueOffsetChange();
   },50);
   setTimeout(()=>{
     if(isEdit&&item.subitems?.length){
@@ -2273,7 +2295,7 @@ async function saveBudgetItem(){
     for(let i=installmentCur-1;i<installmentTotal;i++){
       const label=name+' '+(i+1)+'/'+installmentTotal;
       await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-        pessoaId:bPessoaId,recurrence:'once',
+        pessoaId:bPessoaId,recurrence:'once',groupId:bGroupId,
         installmentCur:i+1,installmentTotal,
         budgetMonth:(curMonth+i-(installmentCur-1)+1200)%12,
         budgetYear:curYear+Math.floor((curMonth+i-(installmentCur-1))/12),
@@ -2488,26 +2510,35 @@ async function deleteBudgetItem(id){
   }
   if(item&&item.groupId){
     const thisTotal=item.budgetYear*12+item.budgetMonth;
-    const future=allBuds.filter(b=>b.groupId===item.groupId&&
-      b.id!==id&&(b.budgetYear*12+b.budgetMonth)>thisTotal);
-    if(future.length>0){
-      showConfirm('Remover parcela do orçamento','Esta parcela faz parte de uma série.',[
-        {label:'Remover só esta',cls:'btn-ghost',action:async()=>{
-          await delOne(id);toast('Parcela removida','var(--red)');renderBudget();
-        }},
-        {label:'Esta e seguintes ('+( future.length+1)+')',cls:'btn-danger',action:async()=>{
-          await delOne(id);
-          for(const b of future)await delOne(b.id);
-          toast('Parcelas removidas','var(--red)');renderBudget();
-        }},
-        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-      ]);
-      return;
-    }
+    const allInGroup=allBuds.filter(b=>b.groupId===item.groupId&&b.id!==id);
+    const future=allInGroup.filter(b=>(b.budgetYear*12+b.budgetMonth)>thisTotal);
+    const instLabel=item.installmentCur&&item.installmentTotal?' ('+item.installmentCur+'/'+item.installmentTotal+')':'';
+    const futureCount=future.length+1;
+    const totalCount=allInGroup.length+1;
+    showConfirm('Remover parcela do orçamento','Esta parcela'+instLabel+' faz parte de uma série de '+totalCount+'.',[
+      {label:'Só esta parcela',cls:'btn-ghost',action:async()=>{
+        await delOne(id);toast('Parcela removida','var(--red)');renderBudget();
+      }},
+      ...(future.length>0?[{label:'Esta e as seguintes ('+futureCount+')',cls:'btn-ghost',action:async()=>{
+        await delOne(id);
+        for(const b of future)await delOne(b.id);
+        toast(futureCount+' parcelas removidas','var(--red)');renderBudget();
+      }}]:[]),
+      {label:'Todas as parcelas ('+totalCount+')',cls:'btn-danger',action:async()=>{
+        await delOne(id);
+        for(const b of allInGroup)await delOne(b.id);
+        toast('Série removida ('+totalCount+' parcelas)','var(--red)');renderBudget();
+      }},
+      {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+    ]);
+    return;
   }
-  if(!confirm('Remover este item do orçamento? Os lançamentos já realizados serão mantidos.'))return;
-  await delOne(id);
-  toast('Item removido','var(--red)');renderBudget();
+  showConfirm('Remover item do orçamento','Os lançamentos já realizados serão mantidos.',[
+    {label:'Remover',cls:'btn-danger',action:async()=>{
+      await delOne(id);toast('Item removido','var(--red)');renderBudget();
+    }},
+    {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+  ]);
 }
 
 /* ── BUDGET ── */

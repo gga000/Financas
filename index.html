@@ -1759,8 +1759,8 @@ function removeSubitem(btn){
   const row=btn.parentElement;
   const sgid=row.dataset.sgid||'';
   // Se nao tem sgid ou nao esta editando item com subRepeatStart: remove direto
-  const modal=document.querySelector('[data-editing-id]');
-  const hasRepeatCtx=modal&&modal.dataset.subRepeatStart;
+  const modal=document.getElementById('modal-content');
+  const hasRepeatCtx=modal&&modal.dataset.subRepeatStart&&modal.dataset.editingId;
   if(!sgid||!hasRepeatCtx){row.remove();updateSubitemsTotal();return;}
   const srs=JSON.parse(modal.dataset.subRepeatStart);
   const elapsed=(curYear*12+curMonth)-(srs.year*12+srs.month);
@@ -2263,6 +2263,11 @@ async function openBudgetValNumpad(){
     }
   }
 }
+async function showBudgetEditById(id){
+  const all=await budgetAll();
+  const item=all.find(x=>x.id===id);
+  if(item)showBudgetAddModal(item);
+}
 function showBudgetAddModal(item=null){
   const isEdit=!!item;
   openModal(`
@@ -2378,7 +2383,7 @@ function showBudgetAddModal(item=null){
       item.subitems.forEach(s=>addSubitem(s.name,s.value,s.repeat||0,s.sgid||''));
     }
     // marcar modal com id do item editado e se tem subRepeatStart
-    const modal=document.querySelector('.modal-content')||document.querySelector('.modal');
+    const modal=document.getElementById('modal-content');
     if(isEdit&&modal){
       modal.dataset.editingId=String(item.id);
       if(item.subRepeatStart)modal.dataset.subRepeatStart=JSON.stringify(item.subRepeatStart);
@@ -2815,7 +2820,7 @@ async function renderBudget(){
           ${income?'+':'-'}${fmt(item.value)}
         </div>
         <div class="budget-actions">
-          <button class="tx-btn edit" onclick="showBudgetAddModal(${JSON.stringify(item).replace(/"/g,'&quot;')})">✏️</button>
+          <button class="tx-btn edit" onclick="showBudgetEditById(${item.id})">✏️</button>
           <button class="tx-btn del" onclick="deleteBudgetItem(${item.id})">✕</button>
         </div>
       </div>

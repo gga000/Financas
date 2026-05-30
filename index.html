@@ -232,11 +232,9 @@ select option{background:var(--bg3)}
 .tx-subitems.open{display:block!important}
 .tx-subitem{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--text2);padding:3px 0;font-family:var(--mono)}
 .subitem-row{display:grid;grid-template-columns:1fr 80px 32px 44px 32px;gap:6px;margin-bottom:8px;align-items:center}
-.subitem-remove{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;height:38px;cursor:pointer}
 .subitem-repeat{background:var(--bg4);border:1px solid var(--border);color:var(--text3);border-radius:8px;height:38px;width:32px;cursor:pointer;font-size:13px;transition:color .15s}
 .subitem-repeat.active{color:var(--teal);border-color:var(--teal);background:var(--teal-bg)}
-.subitem-repeat-n{width:44px;font-size:12px;text-align:center;display:none}
-.subitem-repeat-n.visible{display:block}
+.subitem-remove{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;height:38px;cursor:pointer}
 
 /* SETTINGS */
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
@@ -1732,8 +1730,8 @@ function addSubitem(name='',value='',repeat=1){
   row.innerHTML=`
     <input class="sub-name" placeholder="Nome do subitem" value="${name}">
     <input class="sub-value" type="number" step="0.01" placeholder="0,00" value="${value}" oninput="updateSubitemsTotal()">
-    <button type="button" class="subitem-repeat${hasRepeat?' active':''}" title="Repetir N vezes" onclick="toggleSubitemRepeat(this)">⟳</button>
-    <input class="sub-repeat" type="number" min="1" max="99" placeholder="×N" value="${hasRepeat?repeat:''}" oninput="updateSubitemsTotal()" style="${hasRepeat?'':'display:none'}">
+    <button type="button" class="subitem-repeat${hasRepeat?' active':''}" title="N vezes" onclick="toggleSubitemRepeat(this)">⟳</button>
+    <input class="sub-repeat" type="number" min="1" max="99" placeholder="N" value="${hasRepeat?repeat:''}" oninput="updateSubitemsTotal()" style="${hasRepeat?'':'display:none'}">
     <button type="button" class="subitem-remove" onclick="this.parentElement.remove();updateSubitemsTotal()">✕</button>
   `;
   area.appendChild(row);
@@ -1758,12 +1756,11 @@ function getSubitems(){
     if(!name||value<=0)return;
     const repeatInp=r.querySelector('.sub-repeat');
     const repeat=repeatInp&&repeatInp.style.display!=='none'?Math.max(1,parseInt(repeatInp.value)||1):1;
-    for(let i=0;i<repeat;i++)result.push({name:repeat>1?name+' '+(i+1)+'/'+repeat:name,value,repeat:repeat>1?repeat:undefined});
+    for(let i=0;i<repeat;i++)result.push({name:repeat>1?name+' '+(i+1)+'/'+repeat:name,value});
   });
   return result;
 }
 function getRawSubitems(){
-  // retorna subitens com repeat preservado (para salvar no banco)
   const area=document.getElementById('modal-b-subitems-area')||document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
   const rows=area?[...area.querySelectorAll('.subitem-row')]:[...document.querySelectorAll('.subitem-row')];
   return rows.map(r=>{
@@ -1934,7 +1931,8 @@ function renderSubitemsHtml(subitems){
   var rows=subitems.map(function(s){
     // escape simples para evitar quebra de HTML
     var safeName=s.name.replace(/[&<>]/g,function(m){if(m==='&')return'&amp;';if(m==='<')return'&lt;';if(m==='>')return'&gt;';return m;});
-    return '<div class="tx-subitem"><span>'+safeName+'</span><span>'+fmt(s.value)+'</span></div>';
+    var repeatLabel=s.repeat&&s.repeat>1?' <span style="font-size:10px;color:var(--teal)">×'+s.repeat+'</span>':'';
+    return '<div class="tx-subitem"><span>'+safeName+repeatLabel+'</span><span style="font-family:var(--mono)">'+fmt(s.value*(s.repeat&&s.repeat>1?s.repeat:1))+'</span></div>';
   }).join('');
   return '<div class="tx-subtoggle" onclick="toggleSubitems(this)">▼ '+subitems.length+' subitens</div>'
     +'<div class="tx-subitems">'+rows+'</div>';
@@ -2107,7 +2105,7 @@ function onBudgetTypeChange(){
   if(recArea)recArea.style.display=(t==='variable'||t==='income')?'block':'none';
   const hint=document.getElementById('b-type-hint');
   if(hint){
-    if(t==='fixed')hint.textContent='Aparece automaticamente em todos os meses';
+    if(t==='fixed'||t==='income')hint.textContent='Aparece automaticamente em todos os meses';
     else hint.textContent='';
   }
 }
@@ -2115,6 +2113,8 @@ function onBudgetRecurChange(){
   const v=document.getElementById('b-recur')?.value;
   const instArea=document.getElementById('b-installments-area');
   if(instArea)instArea.style.display=v==='installments'?'block':'none';
+  const hint=document.getElementById('b-type-hint');
+  if(hint)hint.textContent=v==='always'?'Aparece automaticamente em todos os meses':'';
 }
 function getBudgetVal(){
   const inp=document.getElementById('b-val');
@@ -2148,14 +2148,7 @@ function onBudgetDueOffsetChange(){
   const offset=parseInt(document.getElementById('b-due-offset')?.value)||0;
   const prev=document.getElementById('b-due-preview');
   if(!prev)return;
-  if(day){
-    const rawM=curMonth+offset;
-    const dm=(rawM%12+12)%12;
-    const dy=curYear+Math.floor(rawM/12);
-    prev.textContent='📅 Vence em '+String(Math.min(day,28)).padStart(2,'0')+'/'+MONTHS[dm].slice(0,3)+'/'+dy;
-  }else{
-    prev.textContent='';
-  }
+  if(day){const rawM=curMonth+offset;const dm=(rawM%12+12)%12;const dy=curYear+Math.floor(rawM/12);prev.textContent='📅 '+String(Math.min(day,28)).padStart(2,'0')+'/'+MONTHS[dm].slice(0,3)+'/'+dy;}else{prev.textContent='';}
 }
 async function openBudgetValNumpad(){
   const valInp=document.getElementById('b-val');
@@ -2194,40 +2187,39 @@ function showBudgetAddModal(item=null){
       </div>
       <div id="b-val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
     </div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Tipo</label>
-        <select id="b-type" onchange="onBudgetTypeChange()">
-          <option value="income"${item?.type==='income'?' selected':''}>💵 Receita</option>
-          <option value="fixed"${(!item||item?.type==='fixed')?' selected':''}>🏠 Despesa Fixa</option>
-          <option value="variable"${item?.type==='variable'?' selected':''}>🛒 Variável</option>
-        </select>
-        <div id="b-type-hint" class="hint" style="margin-top:4px"></div>
-      </div>
-      <div class="form-group">
-        <label>Vencimento <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:8px">
-          <div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Dia</div>
-            <input id="b-day" type="text" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}" style="text-align:center" oninput="onBudgetDueOffsetChange()">
-          </div>
-          <div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Mês</div>
-            <select id="b-due-offset" onchange="onBudgetDueOffsetChange()">
-              <option value="0"${!isEdit||!item.dueMonthOffset?' selected':''}>${MONTHS[curMonth].slice(0,3)}/${String(curYear).slice(2)} (este mês)</option>
-              <option value="1"${isEdit&&item.dueMonthOffset===1?' selected':''}>${MONTHS[(curMonth+1)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+1)/12)).slice(2)} (+1 mês)</option>
-              <option value="2"${isEdit&&item.dueMonthOffset===2?' selected':''}>${MONTHS[(curMonth+2)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+2)/12)).slice(2)} (+2 meses)</option>
-            </select>
-          </div>
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="b-type" onchange="onBudgetTypeChange()">
+        <option value="income"${item?.type==='income'?' selected':''}>\xf0\x9f\x92\xb5 Receita</option>
+        <option value="fixed"${(!item||item?.type==='fixed')?' selected':''}>\xf0\x9f\x8f\xa0 Despesa Fixa</option>
+        <option value="variable"${item?.type==='variable'?' selected':''}>\xf0\x9f\x9b\x92 Vari\xc3\xa1vel</option>
+      </select>
+      <div id="b-type-hint" class="hint" style="margin-top:4px"></div>
+    </div>
+    <div class="form-group">
+      <label>Vencimento <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <div style="display:grid;grid-template-columns:80px 1fr 1.5fr;gap:8px;align-items:end">
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Dia</div>
+          <input id="b-day" type="text" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}" style="text-align:center" oninput="onBudgetDueOffsetChange()">
         </div>
-        <div id="b-due-preview" style="font-size:12px;color:var(--blue);margin-top:6px;min-height:16px"></div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">M\xc3\xaas</div>
+          <select id="b-due-offset" onchange="onBudgetDueOffsetChange()">
+            <option value="0"${!isEdit||!item.dueMonthOffset?' selected':''}>${MONTHS[curMonth].slice(0,3)}/${String(curYear).slice(2)}</option>
+            <option value="1"${isEdit&&item.dueMonthOffset===1?' selected':''}>${MONTHS[(curMonth+1)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+1)/12)).slice(2)}</option>
+            <option value="2"${isEdit&&item.dueMonthOffset===2?' selected':''}>${MONTHS[(curMonth+2)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+2)/12)).slice(2)}</option>
+          </select>
+        </div>
+        <div id="b-due-preview" style="font-size:12px;color:var(--blue);padding-bottom:10px;white-space:nowrap"></div>
       </div>
     </div>
     <div id="b-recurrence-area" style="${(item?.type==='variable'||item?.type==='income')?'':'display:none'}">
       <div class="form-group">
         <label>Recorrência</label>
         <select id="b-recur" onchange="onBudgetRecurChange()">
-          <option value="once" ${item?.recurrence==='once'||!item?.recurrence&&item?.type==='variable'?'selected':''}>Único (só este mês)</option>
+          <option value="always" ${item?.type==='income'&&(!item?.recurrence||item?.recurrence==='always')?'selected':''}>Fixo (todo m\xc3\xaas)</option>
+          <option value="once" ${item?.recurrence==='once'||((!item?.recurrence||item?.recurrence==='always')&&item?.type!=='income')?'selected':''}>\xc3\x9anico (s\xc3\xb3 este m\xc3\xaas)</option>
           <option value="installments" ${item?.recurrence==='installments'?'selected':''}>Parcelado (N meses)</option>
         </select>
       </div>
@@ -2274,7 +2266,8 @@ function showBudgetAddModal(item=null){
       const recArea=document.getElementById('b-recurrence-area');
       if(recArea)recArea.style.display=(item.type==='variable'||item.type==='income')?'block':'none';
       const recurSel=document.getElementById('b-recur');
-      if(recurSel&&item.recurrence)recurSel.value=item.recurrence;
+      if(recurSel)recurSel.value=item.recurrence||(item.type==='income'?'always':'once');
+      onBudgetRecurChange();
       const instArea=document.getElementById('b-installments-area');
       if(instArea)instArea.style.display=item.recurrence==='installments'?'block':'none';
     }
@@ -2287,7 +2280,6 @@ function showBudgetAddModal(item=null){
         if(prev&&!isNaN(r)){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
       }
     }
-    onBudgetDueOffsetChange();
   },50);
   setTimeout(()=>{
     if(isEdit&&item.subitems?.length){
@@ -2297,11 +2289,9 @@ function showBudgetAddModal(item=null){
 }
 function getBudgetRecurrence(){
   const type=document.getElementById('b-type')?.value;
-  const recur=document.getElementById('b-recur')?.value||'once';
   if(type==='fixed')return{recurrence:'always',installmentCur:null,installmentTotal:null};
-  if(type==='income'&&recur==='once'&&!document.getElementById('b-recurrence-area')?.style.display.includes('none')){
-    // income pode ser once ou installments se recurrence area estiver visivel
-  }else if(type==='income'){return{recurrence:'always',installmentCur:null,installmentTotal:null};}
+  const recur=document.getElementById('b-recur')?.value||'once';
+  if(recur==='always')return{recurrence:'always',installmentCur:null,installmentTotal:null};
   if(recur==='installments'){
     return{
       recurrence:'installments',
@@ -2665,7 +2655,7 @@ async function renderBudget(){
           </div>
           <div class="budget-meta">
             <span style="white-space:nowrap">💳 Fatura cartão</span>
-            ${item.dueDay?'<span style="white-space:nowrap">📅 Vence dia '+item.dueDay+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
+            ${item.dueDay?'<span style="color:var(--blue);font-size:10px">📅 '+String(item.dueDay).padStart(2,'0')+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
             ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
             ${pessoa?'<span class="person-tag" style="white-space:nowrap">'+personAvatarHtml(pessoa,14)+' '+pessoa.nome+'</span>':''}
             ${item._gastos&&item._gastos.length?renderSubitemsHtml(item._gastos.map(g=>({name:g.name,value:g.value}))):''}

@@ -2508,9 +2508,12 @@ async function deleteBudgetItem(id){
       };
     });
   }
-  if(item&&item.groupId){
+  const isSeries=item&&(item.groupId||(item.installmentTotal>1&&item.recurrence==='once'));
+  if(isSeries){
     const thisTotal=item.budgetYear*12+item.budgetMonth;
-    const allInGroup=allBuds.filter(b=>b.groupId===item.groupId&&b.id!==id);
+    const allInGroup=item.groupId
+      ?allBuds.filter(b=>b.groupId===item.groupId&&b.id!==id)
+      :allBuds.filter(b=>b.id!==id&&b.installmentTotal===item.installmentTotal&&b.recurrence==='once'&&b.pessoaId===item.pessoaId&&b.name.replace(/\s+\d+\/\d+$/,'')===item.name.replace(/\s+\d+\/\d+$/,''));
     const future=allInGroup.filter(b=>(b.budgetYear*12+b.budgetMonth)>thisTotal);
     const instLabel=item.installmentCur&&item.installmentTotal?' ('+item.installmentCur+'/'+item.installmentTotal+')':'';
     const futureCount=future.length+1;

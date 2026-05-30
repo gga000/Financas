@@ -1778,14 +1778,15 @@ function getActiveSubitems(subitems, startMonth, startYear, curM, curY){
   const elapsed=(curY*12+curM)-(startYear*12+startMonth);
   const result=[];
   subitems.forEach(s=>{
-    const rep=s.repeat; // undefined/0=fixo, N>=1=limitado
-    if(rep==null||rep===0||rep===undefined){
-      result.push({name:s.name,value:s.value}); // fixo
-    } else if(elapsed<rep){
-      const cur=elapsed+1;
-      result.push({name:s.name+' '+cur+'/'+rep,value:s.value});
+    const rep=s.repeat; // 0/undefined=fixo, N>=1=limitado
+    if(!rep){
+      result.push({name:s.name,value:s.value}); // fixo: sempre
+    } else if(elapsed>=0&&elapsed<rep){
+      // dentro do range: mostrar com label X/N
+      result.push({name:s.name+' '+(elapsed+1)+'/'+rep,value:s.value});
     }
-    // elapsed>=rep: subitem acabou, nao aparece
+    // elapsed<0: ainda nao comecou - nao mostra
+    // elapsed>=rep: acabou - nao mostra
   });
   return result;
 }
@@ -2557,9 +2558,16 @@ async function toggleBudgetDone(budgetId){
     const dueYear=curYear+Math.floor(rawDueMonth/12);
     const dueMonth=(rawDueMonth%12+12)%12;
     const dateStr=dueYear+'-'+String(dueMonth+1).padStart(2,'0')+'-'+String(Math.min(day,28)).padStart(2,'0');
+    // calcular subitems e valor ativos para este mes
+    let txSubs=item.subitems||[];
+    let txVal=item.value;
+    if(item.subRepeatStart&&txSubs.length){
+      txSubs=getActiveSubitems(txSubs,item.subRepeatStart.month,item.subRepeatStart.year,curMonth,curYear);
+      if(txSubs.length)txVal=txSubs.reduce((t,s)=>t+s.value,0);
+    }
     const txId=await dbAdd({
-      name:item.name,value:item.value,rawExpr:item.rawExpr||null,
-      subitems:item.subitems||[],type:item.type,
+      name:item.name,value:txVal,rawExpr:item.rawExpr||null,
+      subitems:txSubs,type:item.type,
       month:curMonth,year:curYear,ym:ym(curYear,curMonth),
       date:dateStr,obs:item.obs||'',pessoaId:item.pessoaId||null,
       fromBudget:true,createdAt:Date.now()

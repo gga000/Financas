@@ -1841,8 +1841,23 @@ async function saveEntry(){
     }
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
   } else {
-    await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,subitems,pessoaId,createdAt:Date.now()});
-    toast('Lançamento salvo!');
+    const rawSubs=getRawSubitems();
+    const maxRepeat=rawSubs.reduce((m,s)=>Math.max(m,s.repeat||1),1);
+    if(maxRepeat>1){
+      const serieId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      let sm=month,sy=year,sd=date;
+      for(let i=0;i<maxRepeat;i++){
+        const monthSubs=rawSubs.filter(s=>(s.repeat||1)>i).map(s=>({name:s.name,value:s.value}));
+        const monthVal=monthSubs.reduce((t,s)=>t+s.value,0)||val;
+        await dbAdd({name:name+(maxRepeat>1?' '+(i+1)+'/'+maxRepeat:''),value:monthVal,rawExpr:i===0?rawExpr:null,type,month:sm,year:sy,ym:ym(sy,sm),date:sd,paidDate,obs,subitems:monthSubs,pessoaId,groupId:serieId,createdAt:Date.now()});
+        sm++;if(sm>11){sm=0;sy++}
+        if(sd){const nd=addMonths(sd,1);if(nd)sd=nd;}
+      }
+      toast(maxRepeat+' lançamentos criados!','var(--teal)');
+    }else{
+      await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,subitems,pessoaId,createdAt:Date.now()});
+      toast('Lançamento salvo!');
+    }
   }
   closeModal();renderAll();
 }
@@ -2103,14 +2118,18 @@ function onBudgetTypeChange(){
   const t=document.getElementById('b-type')?.value;
   const recArea=document.getElementById('b-recurrence-area');
   if(recArea)recArea.style.display=(t==='variable'||t==='income')?'block':'none';
-  const hint=document.getElementById('b-type-hint');
-  if(hint){
-    if(t==='fixed'||t==='income')hint.textContent='Aparece automaticamente em todos os meses';
-    else hint.textContent='';
+  const recurSel=document.getElementById('b-recur');
+  if(recurSel&&!recurSel.dataset.userChanged){
+    recurSel.value=t==='income'?'always':'once';
+    onBudgetRecurChange();
   }
+  const hint=document.getElementById('b-type-hint');
+  if(hint)hint.textContent='';
 }
 function onBudgetRecurChange(){
-  const v=document.getElementById('b-recur')?.value;
+  const sel=document.getElementById('b-recur');
+  const v=sel?.value;
+  if(sel)sel.dataset.userChanged='1';
   const instArea=document.getElementById('b-installments-area');
   if(instArea)instArea.style.display=v==='installments'?'block':'none';
   const hint=document.getElementById('b-type-hint');
@@ -2190,9 +2209,9 @@ function showBudgetAddModal(item=null){
     <div class="form-group">
       <label>Tipo</label>
       <select id="b-type" onchange="onBudgetTypeChange()">
-        <option value="income"${item?.type==='income'?' selected':''}>\xf0\x9f\x92\xb5 Receita</option>
-        <option value="fixed"${(!item||item?.type==='fixed')?' selected':''}>\xf0\x9f\x8f\xa0 Despesa Fixa</option>
-        <option value="variable"${item?.type==='variable'?' selected':''}>\xf0\x9f\x9b\x92 Vari\xc3\xa1vel</option>
+        <option value="income"${item?.type==='income'?' selected':''}>💵 Receita</option>
+        <option value="fixed"${(!item||item?.type==='fixed')?' selected':''}>🏠 Despesa Fixa</option>
+        <option value="variable"${item?.type==='variable'?' selected':''}>🛒 Variável</option>
       </select>
       <div id="b-type-hint" class="hint" style="margin-top:4px"></div>
     </div>
@@ -2204,7 +2223,7 @@ function showBudgetAddModal(item=null){
           <input id="b-day" type="text" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}" style="text-align:center" oninput="onBudgetDueOffsetChange()">
         </div>
         <div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">M\xc3\xaas</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Mês</div>
           <select id="b-due-offset" onchange="onBudgetDueOffsetChange()">
             <option value="0"${!isEdit||!item.dueMonthOffset?' selected':''}>${MONTHS[curMonth].slice(0,3)}/${String(curYear).slice(2)}</option>
             <option value="1"${isEdit&&item.dueMonthOffset===1?' selected':''}>${MONTHS[(curMonth+1)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+1)/12)).slice(2)}</option>
@@ -2218,8 +2237,8 @@ function showBudgetAddModal(item=null){
       <div class="form-group">
         <label>Recorrência</label>
         <select id="b-recur" onchange="onBudgetRecurChange()">
-          <option value="always" ${item?.type==='income'&&(!item?.recurrence||item?.recurrence==='always')?'selected':''}>Fixo (todo m\xc3\xaas)</option>
-          <option value="once" ${item?.recurrence==='once'||((!item?.recurrence||item?.recurrence==='always')&&item?.type!=='income')?'selected':''}>\xc3\x9anico (s\xc3\xb3 este m\xc3\xaas)</option>
+          <option value="always" ${item?.type==='income'&&(!item?.recurrence||item?.recurrence==='always')?'selected':''}>Fixo (todo mês)</option>
+          <option value="once" ${item?.recurrence==='once'||((!item?.recurrence||item?.recurrence==='always')&&item?.type!=='income')?'selected':''}>Único (só este mês)</option>
           <option value="installments" ${item?.recurrence==='installments'?'selected':''}>Parcelado (N meses)</option>
         </select>
       </div>
@@ -2327,12 +2346,29 @@ async function saveBudgetItem(){
     }
     toast(installmentTotal-installmentCur+1+' parcelas adicionadas!','var(--teal)');
   }else{
-    await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-      pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,
-      budgetMonth:recurrence==='once'?curMonth:null,
-      budgetYear:recurrence==='once'?curYear:null,
-      createdAt:Date.now()});
-    toast('Item adicionado!','var(--teal)');
+    // subitens com repeat geram parcelas mensais
+    const maxRepeatB=subitems.reduce((m,s)=>Math.max(m,s.repeat||1),1);
+    if(maxRepeatB>1&&recurrence!=='installments'){
+      const bSerieId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      for(let i=0;i<maxRepeatB;i++){
+        const rawM=curMonth+i;
+        const bm=(rawM%12+12)%12;
+        const by=curYear+Math.floor(rawM/12);
+        const mSubs=subitems.filter(s=>(s.repeat||1)>i).map(s=>({name:s.name,value:s.value}));
+        const mVal=mSubs.reduce((t,s)=>t+s.value,0)||val;
+        await budgetAdd({name:name+(maxRepeatB>1?' '+(i+1)+'/'+maxRepeatB:''),value:mVal,rawExpr:i===0?bRawExpr:null,type,dueDay,dueMonthOffset,obs,subitems:mSubs,
+          pessoaId:bPessoaId,recurrence:'once',groupId:bSerieId,installmentCur:i+1,installmentTotal:maxRepeatB,
+          budgetMonth:bm,budgetYear:by,createdAt:Date.now()});
+      }
+      toast(maxRepeatB+' parcelas criadas!','var(--teal)');
+    }else{
+      await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+        pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,
+        budgetMonth:recurrence==='once'?curMonth:null,
+        budgetYear:recurrence==='once'?curYear:null,
+        createdAt:Date.now()});
+      toast('Item adicionado!','var(--teal)');
+    }
   }
   closeModal();renderBudget();
 }

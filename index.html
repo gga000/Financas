@@ -1769,24 +1769,23 @@ function removeSubitem(btn){
   const repeatInp=row.querySelector('.sub-repeat');
   const rep=parseInt(repeatInp?.value)||0;
   const remaining=rep-elapsed;
+  const editingId=modal?.dataset.editingId;
   showConfirm('Remover subitem','"'+name+'" — '+remaining+' mês(es) restante(s).',[
-    {label:'Só este mês',cls:'btn-ghost',action:()=>{
-      // adiciona elapsed ao array skip: pula so este mes, os outros continuam
+    {label:'Só este mês',cls:'btn-ghost',action:async()=>{
       const skips=row.dataset.skip?JSON.parse(row.dataset.skip):[];
       skips.push(elapsed);
       row.dataset.skip=JSON.stringify(skips);
-      row.style.opacity='0.85';
       updateSubitemsTotal();
+      if(editingId)await saveBudgetEdit(parseInt(editingId));
     }},
-    {label:'Este e seguintes',cls:'btn-ghost',action:()=>{
-      // trunca repeat em elapsed: nao aparece mais daqui pra frente
+    {label:'Este e seguintes',cls:'btn-ghost',action:async()=>{
       row.dataset.repeatCap=String(elapsed);
-      row.style.opacity='0.4';
-      btn.disabled=true;
       updateSubitemsTotal();
+      if(editingId)await saveBudgetEdit(parseInt(editingId));
     }},
-    {label:'Todos os meses',cls:'btn-danger',action:()=>{
+    {label:'Todos os meses',cls:'btn-danger',action:async()=>{
       row.remove();updateSubitemsTotal();
+      if(editingId)await saveBudgetEdit(parseInt(editingId));
     }},
     {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
   ]);

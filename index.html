@@ -1749,16 +1749,14 @@ function toggleSubitemRepeat(btn){
 function getSubitems(){
   const area=document.getElementById('modal-b-subitems-area')||document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
   const rows=area?[...area.querySelectorAll('.subitem-row')]:[...document.querySelectorAll('.subitem-row')];
-  const result=[];
-  rows.forEach(r=>{
+  return rows.map(r=>{
     const name=r.querySelector('.sub-name').value.trim();
     const value=parseFloat(r.querySelector('.sub-value').value)||0;
-    if(!name||value<=0)return;
+    if(!name||value<=0)return null;
     const repeatInp=r.querySelector('.sub-repeat');
-    const repeat=repeatInp&&repeatInp.style.display!=='none'?Math.max(1,parseInt(repeatInp.value)||1):1;
-    for(let i=0;i<repeat;i++)result.push({name:repeat>1?name+' '+(i+1)+'/'+repeat:name,value});
-  });
-  return result;
+    const repeat=repeatInp&&repeatInp.style.display!=='none'?Math.max(1,parseInt(repeatInp.value)||1):0;
+    return {name:repeat>1?name+' 1/'+repeat:name,value};
+  }).filter(Boolean);
 }
 function getRawSubitems(){
   const area=document.getElementById('modal-b-subitems-area')||document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
@@ -1842,14 +1840,16 @@ async function saveEntry(){
     toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
   } else {
     const rawSubs=getRawSubitems();
-    const maxRepeat=rawSubs.reduce((m,s)=>Math.max(m,s.repeat||1),1);
-    if(maxRepeat>1){
+    const maxRepeat=rawSubs.reduce((m,s)=>s.repeat>1?Math.max(m,s.repeat):m,0);
+    if(maxRepeat>0){
       const serieId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
       let sm=month,sy=year,sd=date;
       for(let i=0;i<maxRepeat;i++){
-        const monthSubs=rawSubs.filter(s=>(s.repeat||1)>i).map(s=>({name:s.name,value:s.value}));
+        const monthSubs=rawSubs
+          .filter(s=>!s.repeat||s.repeat>i)
+          .map(s=>s.repeat&&s.repeat>1?{name:s.name+' '+(i+1)+'/'+s.repeat,value:s.value}:{name:s.name,value:s.value});
         const monthVal=monthSubs.reduce((t,s)=>t+s.value,0)||val;
-        await dbAdd({name:name+(maxRepeat>1?' '+(i+1)+'/'+maxRepeat:''),value:monthVal,rawExpr:i===0?rawExpr:null,type,month:sm,year:sy,ym:ym(sy,sm),date:sd,paidDate,obs,subitems:monthSubs,pessoaId,groupId:serieId,createdAt:Date.now()});
+        await dbAdd({name,value:monthVal,rawExpr:i===0?rawExpr:null,type,month:sm,year:sy,ym:ym(sy,sm),date:sd,paidDate,obs,subitems:monthSubs,pessoaId,groupId:serieId,recurring:true,createdAt:Date.now()});
         sm++;if(sm>11){sm=0;sy++}
         if(sd){const nd=addMonths(sd,1);if(nd)sd=nd;}
       }
@@ -1946,8 +1946,7 @@ function renderSubitemsHtml(subitems){
   var rows=subitems.map(function(s){
     // escape simples para evitar quebra de HTML
     var safeName=s.name.replace(/[&<>]/g,function(m){if(m==='&')return'&amp;';if(m==='<')return'&lt;';if(m==='>')return'&gt;';return m;});
-    var repeatLabel=s.repeat&&s.repeat>1?' <span style="font-size:10px;color:var(--teal)">×'+s.repeat+'</span>':'';
-    return '<div class="tx-subitem"><span>'+safeName+repeatLabel+'</span><span style="font-family:var(--mono)">'+fmt(s.value*(s.repeat&&s.repeat>1?s.repeat:1))+'</span></div>';
+    return '<div class="tx-subitem"><span>'+safeName+'</span><span style="font-family:var(--mono)">'+fmt(s.value)+'</span></div>';
   }).join('');
   return '<div class="tx-subtoggle" onclick="toggleSubitems(this)">▼ '+subitems.length+' subitens</div>'
     +'<div class="tx-subitems">'+rows+'</div>';
@@ -2347,16 +2346,18 @@ async function saveBudgetItem(){
     toast(installmentTotal-installmentCur+1+' parcelas adicionadas!','var(--teal)');
   }else{
     // subitens com repeat geram parcelas mensais
-    const maxRepeatB=subitems.reduce((m,s)=>Math.max(m,s.repeat||1),1);
-    if(maxRepeatB>1&&recurrence!=='installments'){
+    const maxRepeatB=subitems.reduce((m,s)=>s.repeat>1?Math.max(m,s.repeat):m,0);
+    if(maxRepeatB>0&&recurrence!=='installments'){
       const bSerieId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
       for(let i=0;i<maxRepeatB;i++){
         const rawM=curMonth+i;
         const bm=(rawM%12+12)%12;
         const by=curYear+Math.floor(rawM/12);
-        const mSubs=subitems.filter(s=>(s.repeat||1)>i).map(s=>({name:s.name,value:s.value}));
+        const mSubs=subitems
+          .filter(s=>!s.repeat||s.repeat>i)
+          .map(s=>s.repeat&&s.repeat>1?{name:s.name+' '+(i+1)+'/'+s.repeat,value:s.value}:{name:s.name,value:s.value});
         const mVal=mSubs.reduce((t,s)=>t+s.value,0)||val;
-        await budgetAdd({name:name+(maxRepeatB>1?' '+(i+1)+'/'+maxRepeatB:''),value:mVal,rawExpr:i===0?bRawExpr:null,type,dueDay,dueMonthOffset,obs,subitems:mSubs,
+        await budgetAdd({name,value:mVal,rawExpr:i===0?bRawExpr:null,type,dueDay,dueMonthOffset,obs,subitems:mSubs,
           pessoaId:bPessoaId,recurrence:'once',groupId:bSerieId,installmentCur:i+1,installmentTotal:maxRepeatB,
           budgetMonth:bm,budgetYear:by,createdAt:Date.now()});
       }

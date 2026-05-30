@@ -1769,23 +1769,22 @@ function removeSubitem(btn){
   const repeatInp=row.querySelector('.sub-repeat');
   const rep=parseInt(repeatInp?.value)||0;
   const remaining=rep-elapsed;
-  const editingId=modal?.dataset.editingId;
   showConfirm('Remover subitem','"'+name+'" — '+remaining+' mês(es) restante(s).',[
-    {label:'Só este mês',cls:'btn-ghost',action:async()=>{
+    {label:'Só este mês',cls:'btn-ghost',action:()=>{
       const skips=row.dataset.skip?JSON.parse(row.dataset.skip):[];
       skips.push(elapsed);
       row.dataset.skip=JSON.stringify(skips);
+      row.style.opacity='0.5';
       updateSubitemsTotal();
-      if(editingId)await saveBudgetEdit(parseInt(editingId));
     }},
-    {label:'Este e seguintes',cls:'btn-ghost',action:async()=>{
+    {label:'Este e seguintes',cls:'btn-ghost',action:()=>{
       row.dataset.repeatCap=String(elapsed);
+      row.style.opacity='0.5';
+      btn.disabled=true;
       updateSubitemsTotal();
-      if(editingId)await saveBudgetEdit(parseInt(editingId));
     }},
-    {label:'Todos os meses',cls:'btn-danger',action:async()=>{
+    {label:'Todos os meses',cls:'btn-danger',action:()=>{
       row.remove();updateSubitemsTotal();
-      if(editingId)await saveBudgetEdit(parseInt(editingId));
     }},
     {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
   ]);
@@ -2390,10 +2389,21 @@ function showBudgetAddModal(item=null){
       const elap=srs?(curYear*12+curMonth-(srs.year*12+srs.month)):0;
       item.subitems.forEach(s=>{
         const rep=s.repeat||0;
-        // fixo (rep=0): sempre mostra
-        // com repeat: so mostra se ainda tem parcelas restantes
+        const skip=s.skip||[];
         if(rep>0&&elap>=rep)return; // ja acabou, nao restaura
-        addSubitem(s.name,s.value,rep,s.sgid||'',s.skip||[]);
+        // repeatCap: se skip transformou o repeat em valor menor via repeatCap salvo
+        // (nao ha repeatCap no banco, skip e repeat sao os campos canonicos)
+        addSubitem(s.name,s.value,rep,s.sgid||'',skip);
+        // mostrar indicador visual se tem skips ou repeatCap aplicado
+        if(skip.length>0){
+          const area=document.getElementById('modal-b-subitems-area');
+          const rows=area?area.querySelectorAll('.subitem-row'):[];
+          const lastRow=rows[rows.length-1];
+          if(lastRow)lastRow.title='Pulado em: '+skip.map(e=>{
+            const rawM=item.subRepeatStart.month+e;
+            return MONTHS[(rawM%12+12)%12].slice(0,3)+'/'+(item.subRepeatStart.year+Math.floor(rawM/12));
+          }).join(', ');
+        }
       });
     }
     // marcar modal com id do item editado e se tem subRepeatStart
@@ -2569,7 +2579,18 @@ async function saveBudgetEdit(id){
     toast('Item atualizado!','var(--teal)');
     closeModal();renderBudget();
   }else{
-    await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+    // Para itens com subRepeatStart: mesclar subitems do DOM com os originais do banco
+    // Os subitems que ja acabaram ficam no banco mas nao aparecem no DOM
+    let finalSubitems=subitems;
+    if(existing.subRepeatStart&&existing.subitems?.length){
+      const srs=existing.subRepeatStart;
+      const elap=(curYear*12+curMonth)-(srs.year*12+srs.month);
+      // subitems do banco que ja acabaram (nao estao no DOM)
+      const ended=existing.subitems.filter(s=>(s.repeat||0)>0&&elap>=(s.repeat||0));
+      // subitems do DOM (ativos ou marcados com skip/repeatCap)
+      finalSubitems=[...subitems,...ended];
+    }
+    await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems:finalSubitems,
       pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,
       budgetMonth:recurrence==='once'?(existing.budgetMonth!=null?existing.budgetMonth:curMonth):null,
       budgetYear:recurrence==='once'?(existing.budgetYear!=null?existing.budgetYear:curYear):null});

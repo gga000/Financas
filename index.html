@@ -231,8 +231,12 @@ select option{background:var(--bg3)}
 .tx-subitems{margin-top:8px;border-top:1px dashed var(--border);padding-top:8px;display:none}
 .tx-subitems.open{display:block!important}
 .tx-subitem{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--text2);padding:3px 0;font-family:var(--mono)}
-.subitem-row{display:grid;grid-template-columns:1fr 90px 32px;gap:8px;margin-bottom:8px;align-items:center}
+.subitem-row{display:grid;grid-template-columns:1fr 80px 32px 44px 32px;gap:6px;margin-bottom:8px;align-items:center}
 .subitem-remove{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:8px;height:38px;cursor:pointer}
+.subitem-repeat{background:var(--bg4);border:1px solid var(--border);color:var(--text3);border-radius:8px;height:38px;width:32px;cursor:pointer;font-size:13px;transition:color .15s}
+.subitem-repeat.active{color:var(--teal);border-color:var(--teal);background:var(--teal-bg)}
+.subitem-repeat-n{width:44px;font-size:12px;text-align:center;display:none}
+.subitem-repeat-n.visible{display:block}
 
 /* SETTINGS */
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
@@ -1711,7 +1715,7 @@ function showEditModal(id){dbAll().then(all=>{
       if(prev&&!isNaN(r)){prev.textContent='= '+fmt(r);prev.style.color='var(--green)';}
     }
     if(t.subitems?.length){
-      t.subitems.forEach(s=>addSubitem(s.name,s.value));
+      t.subitems.forEach(s=>addSubitem(s.name,s.value,s.repeat||1));
       updateSubitemsTotal();
     }
     renderPessoaChips('f-pessoa-chips',t.pessoaId||null);
@@ -1719,29 +1723,56 @@ function showEditModal(id){dbAll().then(all=>{
 })}
 
 
-function addSubitem(name='',value=''){
-  // pick the correct container based on which modal is open
+function addSubitem(name='',value='',repeat=1){
   const area=document.getElementById('modal-b-subitems-area')||document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
   if(!area)return;
   const row=document.createElement('div');
   row.className='subitem-row';
+  const hasRepeat=repeat>1;
   row.innerHTML=`
     <input class="sub-name" placeholder="Nome do subitem" value="${name}">
     <input class="sub-value" type="number" step="0.01" placeholder="0,00" value="${value}" oninput="updateSubitemsTotal()">
+    <button type="button" class="subitem-repeat${hasRepeat?' active':''}" title="Repetir N vezes" onclick="toggleSubitemRepeat(this)">⟳</button>
+    <input class="sub-repeat" type="number" min="1" max="99" placeholder="×N" value="${hasRepeat?repeat:''}" oninput="updateSubitemsTotal()" style="${hasRepeat?'':'display:none'}">
     <button type="button" class="subitem-remove" onclick="this.parentElement.remove();updateSubitemsTotal()">✕</button>
   `;
   area.appendChild(row);
   updateSubitemsTotal();
 }
+function toggleSubitemRepeat(btn){
+  const row=btn.parentElement;
+  const inp=row.querySelector('.sub-repeat');
+  const active=btn.classList.toggle('active');
+  inp.style.display=active?'block':'none';
+  if(!active){inp.value='';updateSubitemsTotal();}
+  else{inp.value='2';inp.focus();updateSubitemsTotal();}
+}
 
 function getSubitems(){
-  // query only from visible modal
+  const area=document.getElementById('modal-b-subitems-area')||document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
+  const rows=area?[...area.querySelectorAll('.subitem-row')]:[...document.querySelectorAll('.subitem-row')];
+  const result=[];
+  rows.forEach(r=>{
+    const name=r.querySelector('.sub-name').value.trim();
+    const value=parseFloat(r.querySelector('.sub-value').value)||0;
+    if(!name||value<=0)return;
+    const repeatInp=r.querySelector('.sub-repeat');
+    const repeat=repeatInp&&repeatInp.style.display!=='none'?Math.max(1,parseInt(repeatInp.value)||1):1;
+    for(let i=0;i<repeat;i++)result.push({name:repeat>1?name+' '+(i+1)+'/'+repeat:name,value,repeat:repeat>1?repeat:undefined});
+  });
+  return result;
+}
+function getRawSubitems(){
+  // retorna subitens com repeat preservado (para salvar no banco)
   const area=document.getElementById('modal-b-subitems-area')||document.getElementById('b-subitems-area')||document.getElementById('subitems-area');
   const rows=area?[...area.querySelectorAll('.subitem-row')]:[...document.querySelectorAll('.subitem-row')];
   return rows.map(r=>{
     const name=r.querySelector('.sub-name').value.trim();
     const value=parseFloat(r.querySelector('.sub-value').value)||0;
-    return name&&value>0?{name,value}:null;
+    if(!name||value<=0)return null;
+    const repeatInp=r.querySelector('.sub-repeat');
+    const repeat=repeatInp&&repeatInp.style.display!=='none'?Math.max(1,parseInt(repeatInp.value)||1):1;
+    return repeat>1?{name,value,repeat}:{name,value};
   }).filter(Boolean);
 }
 
@@ -1785,7 +1816,7 @@ function getFormValues(){
   const month=parseInt(document.getElementById('f-month').value);
   const year=parseInt(document.getElementById('f-year').value);
   const obs=document.getElementById('f-obs')?.value.trim()||'';
-  const subitems=getSubitems();
+  const subitems=getRawSubitems();
   const pessoaId=getSelectedPessoa('f-pessoa-chips');
   return{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId};
 }
@@ -2073,10 +2104,10 @@ async function renderProj(){
 function onBudgetTypeChange(){
   const t=document.getElementById('b-type')?.value;
   const recArea=document.getElementById('b-recurrence-area');
-  if(recArea)recArea.style.display=t==='variable'?'block':'none';
+  if(recArea)recArea.style.display=(t==='variable'||t==='income')?'block':'none';
   const hint=document.getElementById('b-type-hint');
   if(hint){
-    if(t==='fixed'||t==='income')hint.textContent='Aparece automaticamente em todos os meses';
+    if(t==='fixed')hint.textContent='Aparece automaticamente em todos os meses';
     else hint.textContent='';
   }
 }
@@ -2192,7 +2223,7 @@ function showBudgetAddModal(item=null){
         <div id="b-due-preview" style="font-size:12px;color:var(--blue);margin-top:6px;min-height:16px"></div>
       </div>
     </div>
-    <div id="b-recurrence-area" style="${item?.type==='variable'?'':'display:none'}">
+    <div id="b-recurrence-area" style="${(item?.type==='variable'||item?.type==='income')?'':'display:none'}">
       <div class="form-group">
         <label>Recorrência</label>
         <select id="b-recur" onchange="onBudgetRecurChange()">
@@ -2241,7 +2272,7 @@ function showBudgetAddModal(item=null){
     if(isEdit){
       // Restore recurrence UI
       const recArea=document.getElementById('b-recurrence-area');
-      if(recArea)recArea.style.display=item.type==='variable'?'block':'none';
+      if(recArea)recArea.style.display=(item.type==='variable'||item.type==='income')?'block':'none';
       const recurSel=document.getElementById('b-recur');
       if(recurSel&&item.recurrence)recurSel.value=item.recurrence;
       const instArea=document.getElementById('b-installments-area');
@@ -2260,14 +2291,17 @@ function showBudgetAddModal(item=null){
   },50);
   setTimeout(()=>{
     if(isEdit&&item.subitems?.length){
-      item.subitems.forEach(s=>addSubitem(s.name,s.value));
+      item.subitems.forEach(s=>addSubitem(s.name,s.value,s.repeat||1));
     }
   },50);
 }
 function getBudgetRecurrence(){
   const type=document.getElementById('b-type')?.value;
-  if(type==='fixed'||type==='income')return{recurrence:'always',installmentCur:null,installmentTotal:null};
   const recur=document.getElementById('b-recur')?.value||'once';
+  if(type==='fixed')return{recurrence:'always',installmentCur:null,installmentTotal:null};
+  if(type==='income'&&recur==='once'&&!document.getElementById('b-recurrence-area')?.style.display.includes('none')){
+    // income pode ser once ou installments se recurrence area estiver visivel
+  }else if(type==='income'){return{recurrence:'always',installmentCur:null,installmentTotal:null};}
   if(recur==='installments'){
     return{
       recurrence:'installments',
@@ -2278,7 +2312,7 @@ function getBudgetRecurrence(){
   return{recurrence:'once',installmentCur:null,installmentTotal:null};
 }
 async function saveBudgetItem(){
-  const subitems=getSubitems();
+  const subitems=getRawSubitems();
   const name=document.getElementById('b-name')?.value.trim();
   const val=getBudgetVal();
   const type=document.getElementById('b-type')?.value;
@@ -2313,7 +2347,7 @@ async function saveBudgetItem(){
   closeModal();renderBudget();
 }
 async function saveBudgetEdit(id){
-  const subitems=getSubitems();
+  const subitems=getRawSubitems();
   const name=document.getElementById('b-name')?.value.trim();
   const val=getBudgetVal();
   const type=document.getElementById('b-type')?.value;
@@ -2650,10 +2684,12 @@ async function renderBudget(){
       <div class="budget-info">
         <div class="budget-name">${item.name}</div>
         <div class="budget-meta">
-          <span style="white-space:nowrap">${CAT_LABELS[item.type]||''}</span>
-          ${item.recurrence==='always'||item.type==='fixed'||item.type==='income'?'<span class="badge badge-blue" style="white-space:nowrap">fixo</span>':''}
-          ${item.recurrence==='installments'&&item.installmentCur?'<span class="badge badge-amber" style="white-space:nowrap">'+item.installmentCur+'/'+item.installmentTotal+'</span>':''}
-          ${item.dueDay?'<span style="white-space:nowrap">📅 Dia '+item.dueDay+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
+          <span style="white-space:nowrap;display:inline-flex;align-items:center;gap:5px">
+            ${CAT_LABELS[item.type]||''}
+            ${item.recurrence==='always'||item.type==='fixed'||item.type==='income'?'<span class="badge badge-blue">fixo</span>':''}
+            ${item.installmentCur&&item.installmentTotal?'<span class="badge badge-amber">'+item.installmentCur+'/'+item.installmentTotal+'</span>':''}
+            ${item.dueDay?'<span style="color:var(--blue);font-size:10px">📅 '+String(item.dueDay).padStart(2,'0')+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
+          </span>
           ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
           ${item._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
           ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}

@@ -1766,8 +1766,9 @@ function getRawSubitems(){
     const value=parseFloat(r.querySelector('.sub-value').value)||0;
     if(!name||value<=0)return null;
     const repeatInp=r.querySelector('.sub-repeat');
-    const repeat=repeatInp&&repeatInp.style.display!=='none'?Math.max(1,parseInt(repeatInp.value)||1):1;
-    return repeat>1?{name,value,repeat}:{name,value};
+    const repeatActive=repeatInp&&repeatInp.style.display!=='none';
+    const repeat=repeatActive?Math.max(1,parseInt(repeatInp.value)||1):0;
+    return repeat>0?{name,value,repeat}:{name,value};
   }).filter(Boolean);
 }
 
@@ -1858,7 +1859,7 @@ async function saveEntry(){
   } else {
     // item com subitems que tem repeat: salva 1 registro com subitems raw
     const rawSubs=getRawSubitems();
-    const hasSubRepeat=rawSubs.some(s=>s.repeat>=1);
+    const hasSubRepeat=rawSubs.some(s=>s.repeat>0);
     if(hasSubRepeat){
       await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,
         subitems:rawSubs,pessoaId,
@@ -2371,7 +2372,7 @@ async function saveBudgetItem(){
     toast(installmentTotal-installmentCur+1+' parcelas adicionadas!','var(--teal)');
   }else{
     // item fixo com subitems que tem repeat: salva 1 registro always com subitems raw
-    const hasSubRepeat=subitems.some(s=>s.repeat>=1);
+    const hasSubRepeat=subitems.some(s=>s.repeat>0);
     if(hasSubRepeat&&recurrence!=='installments'){
       await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
         pessoaId:bPessoaId,recurrence:'always',

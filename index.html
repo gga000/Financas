@@ -2160,8 +2160,15 @@ function showBudgetAddModal(item=null){
         <div id="b-type-hint" class="hint" style="margin-top:4px"></div>
       </div>
       <div class="form-group">
-        <label>Vencimento (dia)</label>
-        <input id="b-day" type="text" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}">
+        <label>Vencimento</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="b-day" type="text" inputmode="numeric" placeholder="Dia (ex: 10)" value="${isEdit&&item.dueDay?item.dueDay:''}" style="flex:1;min-width:0">
+          <select id="b-due-offset" style="flex:1.4;min-width:0">
+            <option value="0"${!isEdit||!item.dueMonthOffset?' selected':''}>Mesmo mês</option>
+            <option value="1"${isEdit&&item.dueMonthOffset===1?' selected':''}>+1 mês</option>
+            <option value="2"${isEdit&&item.dueMonthOffset===2?' selected':''}>+2 meses</option>
+          </select>
+        </div>
       </div>
     </div>
     <div id="b-recurrence-area" style="${item?.type==='variable'?'':'display:none'}">
@@ -2254,6 +2261,7 @@ async function saveBudgetItem(){
   const val=getBudgetVal();
   const type=document.getElementById('b-type')?.value;
   const dueDay=parseInt(document.getElementById('b-day')?.value)||null;
+  const dueMonthOffset=parseInt(document.getElementById('b-due-offset')?.value)||0;
   const obs=document.getElementById('b-obs')?.value.trim()||'';
   const bPessoaId=getSelectedPessoa('b-pessoa-chips');
   const bRawExpr=getBudgetRawExpr();
@@ -2264,7 +2272,7 @@ async function saveBudgetItem(){
         const bGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
     for(let i=installmentCur-1;i<installmentTotal;i++){
       const label=name+' '+(i+1)+'/'+installmentTotal;
-      await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+      await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
         pessoaId:bPessoaId,recurrence:'once',
         installmentCur:i+1,installmentTotal,
         budgetMonth:(curMonth+i-(installmentCur-1)+1200)%12,
@@ -2273,7 +2281,7 @@ async function saveBudgetItem(){
     }
     toast(installmentTotal-installmentCur+1+' parcelas adicionadas!','var(--teal)');
   }else{
-    await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+    await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
       pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,
       budgetMonth:recurrence==='once'?curMonth:null,
       budgetYear:recurrence==='once'?curYear:null,
@@ -2288,6 +2296,7 @@ async function saveBudgetEdit(id){
   const val=getBudgetVal();
   const type=document.getElementById('b-type')?.value;
   const dueDay=parseInt(document.getElementById('b-day')?.value)||null;
+  const dueMonthOffset=parseInt(document.getElementById('b-due-offset')?.value)||0;
   const obs=document.getElementById('b-obs')?.value.trim()||'';
   const bPessoaId=getSelectedPessoa('b-pessoa-chips');
   const bRawExpr=getBudgetRawExpr();
@@ -2308,7 +2317,7 @@ async function saveBudgetEdit(id){
             const label=name.replace(/\s+\d+\/\d+$/,'').trim()+' '+(i+1)+'/'+installmentTotal;
             const mOffset=i-(installmentCur-1);
             const rawM=curMonth+mOffset;
-            await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+            await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
               pessoaId:bPessoaId,recurrence:'once',groupId:newBGroupId,
               installmentCur:i+1,installmentTotal,
               budgetMonth:(rawM%12+12)%12,
@@ -2329,7 +2338,7 @@ async function saveBudgetEdit(id){
       const label=name.replace(/\s+\d+\/\d+$/,'').trim()+' '+(i+1)+'/'+installmentTotal;
       const mOffset=i-(installmentCur-1);
       const rawM=curMonth+mOffset;
-      await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+      await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
         pessoaId:bPessoaId,recurrence:'once',groupId:newBGroupId,
         installmentCur:i+1,installmentTotal,
         budgetMonth:(rawM%12+12)%12,
@@ -2349,7 +2358,7 @@ async function saveBudgetEdit(id){
       closeModal();
       showConfirm('Editar parcela do orçamento','Esta parcela faz parte de uma série.',[
         {label:'Apenas esta',cls:'btn-ghost',action:async()=>{
-          await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+          await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
             pessoaId:bPessoaId,recurrence:'once',
             budgetMonth:existing.budgetMonth,budgetYear:existing.budgetYear});
           toast('Parcela atualizada!','var(--teal)');renderBudget();
@@ -2369,7 +2378,7 @@ async function saveBudgetEdit(id){
             const bm=(ym2%12+12)%12;
             const by=Math.floor(ym2/12);
             const label2=baseName2+' '+(startInst+i)+'/'+totalInst;
-            await budgetAdd({name:label2,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+            await budgetAdd({name:label2,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
               pessoaId:bPessoaId,recurrence:'once',groupId:newG,
               installmentCur:startInst+i,installmentTotal:totalInst,
               budgetMonth:bm,budgetYear:by,createdAt:Date.now()});
@@ -2380,13 +2389,13 @@ async function saveBudgetEdit(id){
       ]);
       return;
     }
-    await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+    await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
       pessoaId:bPessoaId,recurrence:'once',
       budgetMonth:existing.budgetMonth,budgetYear:existing.budgetYear});
     toast('Item atualizado!','var(--teal)');
     closeModal();renderBudget();
   }else{
-    await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,obs,subitems,
+    await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
       pessoaId:bPessoaId,recurrence,installmentCur,installmentTotal,
       budgetMonth:recurrence==='once'?(existing.budgetMonth!=null?existing.budgetMonth:curMonth):null,
       budgetYear:recurrence==='once'?(existing.budgetYear!=null?existing.budgetYear:curYear):null});
@@ -2443,7 +2452,11 @@ async function toggleBudgetDone(budgetId){
     const item=buds.find(x=>x.id===id);
     if(!item)return;
     const day=item.dueDay||1;
-    const dateStr=curYear+'-'+String(curMonth+1).padStart(2,'0')+'-'+String(Math.min(day,28)).padStart(2,'0');
+    const offset=item.dueMonthOffset||0;
+    const rawDueMonth=curMonth+offset;
+    const dueYear=curYear+Math.floor(rawDueMonth/12);
+    const dueMonth=(rawDueMonth%12+12)%12;
+    const dateStr=dueYear+'-'+String(dueMonth+1).padStart(2,'0')+'-'+String(Math.min(day,28)).padStart(2,'0');
     const txId=await dbAdd({
       name:item.name,value:item.value,rawExpr:item.rawExpr||null,
       subitems:item.subitems||[],type:item.type,
@@ -2569,7 +2582,7 @@ async function renderBudget(){
   const sorted=[...enrichedItems].sort((a,b)=>{
     const ad=doneIds.has(a.id)?1:0,bd=doneIds.has(b.id)?1:0;
     if(ad!==bd)return ad-bd;
-    return(a.dueDay||99)-(b.dueDay||99);
+    return((a.dueMonthOffset||0)*100+(a.dueDay||99))-((b.dueMonthOffset||0)*100+(b.dueDay||99));
   });
   listEl.innerHTML=sorted.map(item=>{
     if(item._isCartao){
@@ -2584,7 +2597,7 @@ async function renderBudget(){
           </div>
           <div class="budget-meta">
             <span style="white-space:nowrap">💳 Fatura cartão</span>
-            ${item.dueDay?'<span style="white-space:nowrap">📅 Vence dia '+item.dueDay+'</span>':''}
+            ${item.dueDay?'<span style="white-space:nowrap">📅 Vence dia '+item.dueDay+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
             ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
             ${pessoa?'<span class="person-tag" style="white-space:nowrap">'+personAvatarHtml(pessoa,14)+' '+pessoa.nome+'</span>':''}
             ${item._gastos&&item._gastos.length?renderSubitemsHtml(item._gastos.map(g=>({name:g.name,value:g.value}))):''}
@@ -2606,7 +2619,7 @@ async function renderBudget(){
           <span style="white-space:nowrap">${CAT_LABELS[item.type]||''}</span>
           ${item.recurrence==='always'||item.type==='fixed'||item.type==='income'?'<span class="badge badge-blue" style="white-space:nowrap">fixo</span>':''}
           ${item.recurrence==='installments'&&item.installmentCur?'<span class="badge badge-amber" style="white-space:nowrap">'+item.installmentCur+'/'+item.installmentTotal+'</span>':''}
-          ${item.dueDay?`<span style="white-space:nowrap">📅 Dia ${item.dueDay}</span>`:''}
+          ${item.dueDay?'<span style="white-space:nowrap">📅 Dia '+item.dueDay+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
           ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
           ${item._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
           ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}

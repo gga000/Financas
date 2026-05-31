@@ -1421,19 +1421,37 @@ function gastoValueForFatura(gasto, fatMonth, fatYear){
 }
 // Calcula total usado no limite: fatura atual + todas as faturas futuras com gastos
 async function calcLimiteUsado(cartao, allGastos){
-  const hoje={month:curMonth,year:curYear};
+  const hojeKey=curYear*100+curMonth;
   let total=0;
-  // agrupar gastos por fatura
-  const faturas=new Map();
-  for(const g of allGastos.filter(g=>g.cartaoId===cartao.id)){
+  const gastosDoCarta=allGastos.filter(g=>g.cartaoId===cartao.id);
+  // usar um Set para evitar contar o mesmo gasto+fatura duas vezes
+  const seen=new Set();
+  for(const g of gastosDoCarta){
     const fm=getFaturaMonth(g.date,cartao);
     if(!fm)continue;
-    const key=fm.year*100+fm.month;
-    const hojeKey=hoje.year*100+hoje.month;
-    if(key<hojeKey)continue; // faturas passadas nao contam
-    const res=gastoValueForFatura(g,fm.month,fm.year);
-    if(!res)continue;
-    total+=res.value;
+    if(!g.subRepeatStart||!g.subitems?.length){
+      // gasto simples: conta so na fatura original
+      const key=fm.year*100+fm.month;
+      if(key<hojeKey)continue;
+      const res=gastoValueForFatura(g,fm.month,fm.year);
+      if(res)total+=res.value;
+    }else{
+      // gasto com subRepeatStart: calcular maxRepeat e iterar sobre faturas futuras
+      const srs=g.subRepeatStart;
+      const maxRep=g.subitems.reduce((m,s)=>Math.max(m,s.repeat||1),1);
+      for(let i=0;i<maxRep;i++){
+        const rawM=srs.month+i;
+        const fatM=(rawM%12+12)%12;
+        const fatY=srs.year+Math.floor(rawM/12);
+        const key=fatY*100+fatM;
+        if(key<hojeKey)continue;
+        const seenKey=g.id+'_'+key;
+        if(seen.has(seenKey))continue;
+        seen.add(seenKey);
+        const res=gastoValueForFatura(g,fatM,fatY);
+        if(res)total+=res.value;
+      }
+    }
   }
   return total;
 }
@@ -1544,11 +1562,18 @@ async function getCartaoBudgetItems(targetMonth, targetYear){
   const pessoaMap = Object.fromEntries(pessoas.map(p=>[p.id,p]));
   const result = [];
   for(const cartao of cartoes){
-    // Get gastos whose fatura period is tm/ty
+    // Get gastos whose fatura period is tm/ty (inclui subRepeatStart ativos)
     const gastosFatura = allGastos.filter(g=>{
       if(g.cartaoId !== cartao.id) return false;
       const fm = getFaturaMonth(g.date, cartao);
-      return fm && fm.month === tm && fm.year === ty;
+      if(!fm) return false;
+      if(fm.month === tm && fm.year === ty) return true;
+      // gasto com subRepeatStart: incluir se tem subitems ativos neste mes
+      if(g.subRepeatStart && g.subitems?.length){
+        const activeSubs=getActiveSubitems(g.subitems,g.subRepeatStart.month,g.subRepeatStart.year,tm,ty);
+        return activeSubs.length>0;
+      }
+      return false;
     });
     // aplicar subRepeatStart nos gastos da fatura
     const gastosAtivos=gastosFatura.map(g=>{

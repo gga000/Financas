@@ -1177,7 +1177,7 @@ function toggleGastoParcela(checked){
   const area=document.getElementById('cg-parcela-area');
   if(area)area.style.display=checked?'block':'none';
 }
-function addGastoSubitem(name='',value='',repeat=0,sgid='',skip=[]){
+function addGastoSubitem(name='',value='',repeat=1,sgid='',skip=[]){
   const area=document.getElementById('cg-subitems-area');
   if(!area)return;
   const row=document.createElement('div');
@@ -1251,12 +1251,11 @@ function getRawGastoSubitems(){
     if(!name||value<=0)return null;
     const repeatInp=r.querySelector('.sub-repeat');
     const repeatActive=repeatInp&&repeatInp.style.display!=='none';
-    let repeat=repeatActive?Math.max(1,parseInt(repeatInp.value)||1):0;
+    let repeat=repeatActive?Math.max(1,parseInt(repeatInp.value)||1):1; // default=1 (unico)
     const sgid=r.dataset.sgid||'';
-    if(r.dataset.repeatCap!=null)repeat=parseInt(r.dataset.repeatCap)||0;
+    if(r.dataset.repeatCap!=null)repeat=parseInt(r.dataset.repeatCap)||1;
     const skip=r.dataset.skip?JSON.parse(r.dataset.skip):[];
-    if(repeat>0)return skip.length?{name,value,repeat,sgid,skip}:{name,value,repeat,sgid};
-    return{name,value};
+    return skip.length?{name,value,repeat,sgid,skip}:{name,value,repeat,sgid};
   }).filter(Boolean);
 }
 async function saveGasto(){
@@ -1285,7 +1284,7 @@ async function saveGasto(){
     toast((ptotal-pnum+1)+' parcelas adicionadas!','var(--purple)');
   }else{
     const gsubs=getRawGastoSubitems();
-    const hasSubRep=gsubs.some(s=>s.repeat>0);
+    const hasSubRep=gsubs.length>0; // todo subitem de gasto tem repeat>=1
     const fatM=getFaturaMonth(date,cartaoObj);
     const srs=hasSubRep&&fatM?{month:fatM.month,year:fatM.year}:null;
     const gval=gsubs.length?gsubs.reduce((t,s)=>t+s.value,0):val;
@@ -1351,7 +1350,7 @@ async function saveGastoEdit(id){
   }
   // Single gasto (no series or no future)
   const gsubs2=getRawGastoSubitems();
-  const hasSubRep2=gsubs2.some(s=>s.repeat>0);
+  const hasSubRep2=gsubs2.length>0;
   // mesclar subitems do DOM com encerrados do banco
   let finalGsubs=gsubs2;
   if(existing.subRepeatStart&&existing.subitems?.length){
@@ -1517,8 +1516,8 @@ async function renderCards(){
           '</div></div>'+
           '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
           '<div class="card-gasto-val">-'+fmt(g.value)+'</div>'+
-          '<button class="tx-btn edit" onclick="editGasto('+cartao.id+','+g.id+')">\xe2\x9c\x8f\xef\xb8\x8f</button>'+
-          '<button class="tx-btn del" onclick="deleteGasto('+g.id+')">\xe2\x9c\x95</button>'+
+          '<button class="tx-btn edit" onclick="editGasto('+cartao.id+','+g.id+')">✏️</button>'+
+          '<button class="tx-btn del" onclick="deleteGasto('+g.id+')">✕</button>'+
           '</div></div>'+
           (subHtml?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+subHtml+'</div>':'')+
           '</div>';

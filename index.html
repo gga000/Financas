@@ -146,6 +146,10 @@ body.cfg-open{padding-bottom:0}
 .badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:500}
 .badge-blue{background:var(--blue-bg);color:var(--blue)}
 .badge-teal{background:var(--teal-bg);color:var(--teal)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.btn-calc{background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)}
+.btn-clear-date{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 2px}
+.card-gasto-col{flex-direction:column!important;align-items:stretch!important}
 
 /* FORM */
 .form-group{margin-bottom:13px}
@@ -1054,7 +1058,7 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
       <label>Valor</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="cg-val" type="text" inputmode="decimal" placeholder="0,00" value="${isEdit?(gasto.rawExpr||gasto.value):''}" style="flex:1" oninput="onCgValInput()">
-        <button type="button" onclick="openGastoNumpad()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)" title="Calculadora">📟</button>
+        <button type="button" onclick="openGastoNumpad()" class="btn-calc" title="Calculadora">📟</button>
       </div>
       <div id="cg-val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
     </div>
@@ -1062,7 +1066,7 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
       <label>Data do gasto</label>
       <div style="display:flex;gap:6px;align-items:center">
         <input id="cg-date" type="date" value="${isEdit?gasto.date:todayISO()}" style="flex:1" onchange="updateFaturaPreview()">
-        <button type="button" onclick="clearDate('cg-date','cg-date-clear');updateFaturaPreview()" id="cg-date-clear" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 2px;display:${isEdit&&gasto.date?'inline':'none'}" title="Limpar">✕</button>
+        <button type="button" onclick="clearDate('cg-date','cg-date-clear');updateFaturaPreview()" id="cg-date-clear" class="btn-clear-date" style="display:${isEdit&&gasto.date?'inline':'none'}" title="Limpar">✕</button>
       </div>
     </div>
     <div id="cg-fatura-preview" style="font-size:12px;color:var(--blue);margin-top:-6px;margin-bottom:10px;min-height:16px"></div>
@@ -1435,7 +1439,7 @@ function showAddRecorrenteModal(cartaoId, recorrente){
   const isEdit=!!recorrente;
   const r=recorrente||{};
   openModal(`
-    <h2 style="margin:0 0 16px">${isEdit?'Editar':'Nova'} Recorrência</h2>
+    <div class="modal-title">${isEdit?'Editar':'Nova'} Recorrência</div>
     <div class="form-group">
       <label>Nome</label>
       <input id="cr-name" placeholder="Ex: Assinaturas" value="${r.name||''}">
@@ -1661,7 +1665,7 @@ async function renderCards(){
         '</div>'+
         recDoCartao2.map(r=>{
           const subHtmlR=r.subitems&&r.subitems.length?renderSubitemsHtml(r.subitems):'';
-          return '<div class="card-gasto-item" style="flex-direction:column;align-items:stretch;border-left:3px solid var(--teal)">'+
+          return '<div class="card-gasto-item card-gasto-col" style="border-left:3px solid var(--teal)">'+
             '<div style="display:flex;align-items:center;gap:10px">'+
             '<div class="card-gasto-info">'+
             '<div class="card-gasto-name">'+r.name+'</div>'+
@@ -1680,7 +1684,7 @@ async function renderCards(){
       </div>
       ${gastosFatura.length?gastosFatura.sort((a,b)=>(b.date||'')>(a.date||'')?-1:1).map(g=>{
         const subHtml=g._activeSubs&&g._activeSubs.length?renderSubitemsHtml(g._activeSubs):'';
-        return '<div class="card-gasto-item" style="flex-direction:column;align-items:stretch">'+
+        return '<div class="card-gasto-item card-gasto-col">'+
           '<div style="display:flex;align-items:center;gap:10px">'+
           '<div class="card-gasto-info">'+
           '<div class="card-gasto-name">'+g.name+'</div>'+
@@ -1943,7 +1947,7 @@ function entryFormHtml(t=null){
       <label>Valor</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="f-val" type="text" inputmode="decimal" placeholder="0,00" value="${defVal}" style="flex:1" oninput="onValInput()">
-        <button type="button" onclick="openValNumpad()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)" title="Calculadora">📟</button>
+        <button type="button" onclick="openValNumpad()" class="btn-calc" title="Calculadora">📟</button>
       </div>
       <div id="val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
     </div>
@@ -1961,7 +1965,7 @@ function entryFormHtml(t=null){
         <label>Vencimento <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
         <div style="display:flex;gap:6px;align-items:center">
           <input id="f-date" type="date" value="${t?.date||''}" style="flex:1" onchange="toggleDateClear('f-date-clear',this.value)">
-          <button type="button" id="f-date-clear" onclick="clearDate('f-date','f-date-clear')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 2px;display:${(t?.date)?'inline':'none'}" title="Limpar">✕</button>
+          <button type="button" id="f-date-clear" onclick="clearDate('f-date','f-date-clear')" class="btn-clear-date" style="display:${(t?.date)?'inline':'none'}" title="Limpar">✕</button>
         </div>
       </div>
     </div>
@@ -1970,7 +1974,7 @@ function entryFormHtml(t=null){
         <label>Pago em <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
         <div style="display:flex;gap:6px;align-items:center">
           <input id="f-paid" type="date" value="${t?.paidDate||''}" style="flex:1" onchange="toggleDateClear('f-paid-clear',this.value)">
-          <button type="button" id="f-paid-clear" onclick="clearDate('f-paid','f-paid-clear')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 2px;display:${(t?.paidDate)?'inline':'none'}" title="Limpar">✕</button>
+          <button type="button" id="f-paid-clear" onclick="clearDate('f-paid','f-paid-clear')" class="btn-clear-date" style="display:${(t?.paidDate)?'inline':'none'}" title="Limpar">✕</button>
         </div>
       </div>
       <div></div>
@@ -2666,7 +2670,7 @@ function showBudgetAddModal(item=null){
       <label>Valor esperado</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="b-val" type="text" inputmode="decimal" placeholder="0,00" value="${isEdit?(item.rawExpr||item.value):''}" style="flex:1" oninput="onBudgetValInput()">
-        <button type="button" onclick="openBudgetValNumpad()" style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-size:16px;flex-shrink:0;color:var(--blue)">📟</button>
+        <button type="button" onclick="openBudgetValNumpad()" class="btn-calc">📟</button>
       </div>
       <div id="b-val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
     </div>

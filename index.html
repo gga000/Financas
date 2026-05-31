@@ -1334,6 +1334,8 @@ async function saveGastoEdit(id){
   const all=await gastosAll();
   const existing=all.find(g=>g.id===id);
   if(!existing)return;
+  const allCartoesEdit=await cartoesAll();
+  const cartaoEdit=allCartoesEdit.find(c=>c.id===existing.cartaoId)||{fechamento:1,vencimento:1};
   // If has groupId (series), offer to update this + following
   if(existing.groupId){
     const future=all.filter(g=>g.groupId===existing.groupId&&
@@ -1383,7 +1385,7 @@ async function saveGastoEdit(id){
     const ended=existing.subitems.filter(s=>(s.repeat||0)>0&&elapE>=(s.repeat||0));
     finalGsubs=[...gsubs2,...ended];
   }
-  const srs2=hasSubRep2?(existing.subRepeatStart||getFaturaMonth(date,existing)||null):null;
+  const srs2=hasSubRep2?(existing.subRepeatStart||getFaturaMonth(date,cartaoEdit)||null):null;
   const gval2=finalGsubs.length?finalGsubs.filter(s=>!(s.repeat&&(curYear*12+curMonth-(srs2?srs2.year*12+srs2.month:0))>=(s.repeat||0))).reduce((t,s)=>t+s.value,0)||val:val;
   await gastosPut({...existing,name,value:gval2,rawExpr:cgRawExpr,date,obs,
     subitems:finalGsubs.length?finalGsubs:undefined,

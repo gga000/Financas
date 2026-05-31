@@ -929,8 +929,18 @@ async function getCartaoFaturaGastos(cartaoId, fatMonth, fatYear){
   return all.filter(g=>{
     if(g.cartaoId!==cartaoId)return false;
     const fm=getFaturaMonth(g.date,cartao);
-    return fm&&fm.month===fatMonth&&fm.year===fatYear;
-  });
+    if(!fm)return false;
+    if(fm.month===fatMonth&&fm.year===fatYear)return true;
+    if(g.subRepeatStart&&g.subitems?.length){
+      const activeSubs=getActiveSubitems(g.subitems,g.subRepeatStart.month,g.subRepeatStart.year,fatMonth,fatYear);
+      return activeSubs.length>0;
+    }
+    return false;
+  }).map(g=>{
+    const res=gastoValueForFatura(g,fatMonth,fatYear);
+    if(!res)return null;
+    return{...g,value:res.value,subitems:res.subitems};
+  }).filter(Boolean);
 }
 
 async function getCartaoFaturaTotal(cartaoId, fatMonth, fatYear){
@@ -1583,13 +1593,13 @@ async function getCartaoBudgetItems(targetMonth, targetYear){
     }).filter(Boolean);
     const total = gastosAtivos.reduce((s,g)=>s+g.value, 0);
     const vencDate = getFaturaVencimento(ty, tm, cartao);
-    const obsLines = gastosFatura.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+    const obsLines = gastosAtivos.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
     const pessoa = cartao.pessoaId ? pessoaMap[cartao.pessoaId] : null;
     result.push({
       _isCartao: true,
       _cartaoId: cartao.id,
       _cartao: cartao,
-      _gastos: gastosFatura,
+      _gastos: gastosAtivos,
       _pessoa: pessoa,
       id: 'cartao_'+cartao.id,
       name: cartao.name,

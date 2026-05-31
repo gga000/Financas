@@ -1456,9 +1456,17 @@ async function renderCards(){
     const gastosFaturaRaw=allGastos.filter(g=>{
       if(g.cartaoId!==cartao.id)return false;
       const fm=getFaturaMonth(g.date,cartao);
-      return fm&&fm.month===fatura.month&&fm.year===fatura.year;
+      if(!fm)return false;
+      // gasto da fatura exata
+      if(fm.month===fatura.month&&fm.year===fatura.year)return true;
+      // gasto com subRepeatStart: aparece em faturas futuras se ainda tem subitems ativos
+      if(g.subRepeatStart&&g.subitems?.length){
+        const activeSubs=getActiveSubitems(g.subitems,g.subRepeatStart.month,g.subRepeatStart.year,fatura.month,fatura.year);
+        return activeSubs.length>0;
+      }
+      return false;
     });
-    // aplicar subRepeatStart: gastos sem subitems ativos somem
+    // aplicar subRepeatStart: calcular valor/subitems ativos para esta fatura
     const gastosFatura=gastosFaturaRaw.map(g=>{
       const res=gastoValueForFatura(g,fatura.month,fatura.year);
       if(!res)return null;
@@ -1482,7 +1490,7 @@ async function renderCards(){
           <button class="tx-btn del" onclick="deleteCartao(${cartao.id})">✕</button>
         </div>
       </div>
-      lass="card-total${total===0?' zero':''}">${total===0?'R$ 0,00':'-'+fmt(total)}</div>
+      <div class="card-total${total===0?' zero':''}">${total===0?'R$ 0,00':'-'+fmt(total)}</div>
       ${cartao.limite?'<div style="margin-top:6px">'+
         '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text3);margin-bottom:4px">'+
         '<span>Usado: '+fmt(limiteUsado)+' / '+fmt(cartao.limite)+'</span>'+
@@ -1492,12 +1500,12 @@ async function renderCards(){
         '<div style="height:100%;border-radius:3px;background:'+limiteColor+';transition:width .4s;width:'+limitePct+'%"></div>'+
         '</div>'+
         (limitePct>=90?'<div style="font-size:11px;color:var(--red);margin-top:3px">⚠️ Próximo do limite</div>':'')+
-      '</div>':''}
+        '</div>':''}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:8px">
         <span style="font-size:12px;color:var(--text3)">${gastosFatura.length} gasto(s) na fatura atual</span>
         <button class="btn btn-primary btn-sm" onclick="showAddGastoModal(${cartao.id},${JSON.stringify(cartao).replace(/"/g,'&quot;')})">+ Gasto</button>
       </div>
-      ${gastosFatura.length?gastosFatura.sort((a,b)=>b.date>a.date?-1:1).map(g=>{
+      ${gastosFatura.length?gastosFatura.sort((a,b)=>(b.date||'')>(a.date||'')?-1:1).map(g=>{
         const subHtml=g._activeSubs&&g._activeSubs.length?renderSubitemsHtml(g._activeSubs):'';
         return '<div class="card-gasto-item" style="flex-direction:column;align-items:stretch">'+
           '<div style="display:flex;align-items:center;gap:10px">'+

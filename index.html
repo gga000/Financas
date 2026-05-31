@@ -563,7 +563,7 @@ function toggleTheme(dark){applyTheme(dark)}
 /* ── DB ── */
 function openDB(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open('financas_pwa_v2',4);
+    const r=indexedDB.open('financas_pwa_v2',5);
     r.onupgradeneeded=e=>{
       const d=e.target.result;
       if(!d.objectStoreNames.contains('tx')){
@@ -585,6 +585,10 @@ function openDB(){
       if(!d.objectStoreNames.contains('gastos')){
         const gs=d.createObjectStore('gastos',{keyPath:'id',autoIncrement:true});
         gs.createIndex('cartaoId','cartaoId');
+      }
+      if(!d.objectStoreNames.contains('recorrentes')){
+        const rc=d.createObjectStore('recorrentes',{keyPath:'id',autoIncrement:true});
+        rc.createIndex('cartaoId','cartaoId');
       }
     };
     r.onsuccess=e=>res(e.target.result);
@@ -614,6 +618,10 @@ const gastosAll=()=>new Promise(res=>{const t=db.transaction('gastos','readonly'
 const gastosAdd=item=>new Promise((res,rej)=>{const t=db.transaction('gastos','readwrite');const r=t.objectStore('gastos').add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const gastosPut=item=>new Promise((res,rej)=>{const t=db.transaction('gastos','readwrite');const r=t.objectStore('gastos').put(item);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)});
 const gastosDel=id=>new Promise(res=>{const t=db.transaction('gastos','readwrite');t.objectStore('gastos').delete(id).onsuccess=()=>res()});
+const recorrentesAll=()=>new Promise(res=>{const t=db.transaction('recorrentes','readonly');t.objectStore('recorrentes').getAll().onsuccess=e=>res(e.target.result||[])});
+const recorrentesAdd=item=>new Promise((res,rej)=>{const t=db.transaction('recorrentes','readwrite');const r=t.objectStore('recorrentes').add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const recorrentesPut=item=>new Promise((res,rej)=>{const t=db.transaction('recorrentes','readwrite');const r=t.objectStore('recorrentes').put(item);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)});
+const recorrentesDel=id=>new Promise(res=>{const t=db.transaction('recorrentes','readwrite');t.objectStore('recorrentes').delete(id).onsuccess=()=>res()});
 
 function doneKey(budgetId,y,m){return`${budgetId}_${y}${String(m+1).padStart(2,'0')}`}
 const doneGet=key=>new Promise(res=>{try{const t=db.transaction('budgetDone','readonly');const r=t.objectStore('budgetDone').get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null)}catch{res(null)}});
@@ -1026,6 +1034,8 @@ async function deleteCartao(id){
   // delete all gastos for this card
   const all=await gastosAll();
   for(const g of all.filter(g=>g.cartaoId===id))await gastosDel(g.id);
+  const allRec=await recorrentesAll();
+  for(const r of allRec.filter(r=>r.cartaoId===id))await recorrentesDel(r.id);
   await cartoesDel(id);
   toast('Cartão removido','var(--red)');
   renderCards();refreshBudgetCartoes();
@@ -1421,6 +1431,108 @@ async function editCartao(cartaoId){
 }
 
 /* ── RENDER CARDS PAGE ── */
+function showAddRecorrenteModal(cartaoId, recorrente){
+  const isEdit=!!recorrente;
+  const r=recorrente||{};
+  openModal(`
+    <h2 style="margin:0 0 16px">${isEdit?'Editar':'Nova'} Recorrência</h2>
+    <div class="form-group">
+      <label>Nome</label>
+      <input id="cr-name" placeholder="Ex: Assinaturas" value="${r.name||''}">
+    </div>
+    <div class="form-group">
+      <label>Valor <span style="font-weight:400;color:var(--text3)">(calculado pelos subitens se preenchidos)</span></label>
+      <input id="cr-val" type="number" step="0.01" placeholder="0,00" value="${r.value||''}">
+    </div>
+    <div class="form-group">
+      <label>Subitens</label>
+      <div id="cr-subitems-area"></div>
+      <button type="button" onclick="addCrSubitem()" style="margin-top:6px;background:none;border:1px dashed var(--border);color:var(--text3);border-radius:var(--radius-sm);padding:6px 12px;font-size:13px;cursor:pointer;width:100%">+ subitem</button>
+    </div>
+    <div class="form-group">
+      <label>Observação</label>
+      <input id="cr-obs" placeholder="Opcional" value="${r.obs||''}">
+    </div>
+    <input type="hidden" id="cr-cartao-id" value="${cartaoId}">
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn btn-primary" style="flex:1" onclick="">${isEdit?'Salvar':'Adicionar'}</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+  setTimeout(()=>{
+    if(isEdit&&r.subitems?.length)r.subitems.forEach(s=>addCrSubitem(s.name,s.value));
+    const saveBtn=document.querySelector('#modal-content .btn-primary');
+    if(saveBtn)saveBtn.onclick=isEdit?()=>saveRecorrenteEdit(r.id):saveRecorrente;
+  },50);
+}
+function addCrSubitem(name='',value=''){
+  const area=document.getElementById('cr-subitems-area');
+  if(!area)return;
+  const row=document.createElement('div');
+  row.className='subitem-row';
+  row.innerHTML=`
+    <input class="sub-name" placeholder="Nome" value="${name}">
+    <input class="sub-value" type="number" step="0.01" placeholder="0,00" value="${value}" oninput="updateCrSubtotal()">
+    <button type="button" class="subitem-repeat" style="visibility:hidden"></button>
+    <input class="sub-repeat" style="display:none">
+    <button type="button" class="subitem-remove" onclick="this.parentElement.remove();updateCrSubtotal()">✕</button>
+  `;
+  area.appendChild(row);
+  updateCrSubtotal();
+}
+function updateCrSubtotal(){
+  const area=document.getElementById('cr-subitems-area');
+  if(!area)return;
+  const total=[...area.querySelectorAll('.subitem-row')].reduce((s,r)=>s+(parseFloat(r.querySelector('.sub-value')?.value)||0),0);
+  if(total>0){const v=document.getElementById('cr-val');if(v)v.value=total.toFixed(2);}
+}
+function getCrSubitems(){
+  const area=document.getElementById('cr-subitems-area');
+  if(!area)return[];
+  return[...area.querySelectorAll('.subitem-row')].map(r=>{
+    const name=r.querySelector('.sub-name').value.trim();
+    const value=parseFloat(r.querySelector('.sub-value').value)||0;
+    return name&&value>0?{name,value}:null;
+  }).filter(Boolean);
+}
+async function saveRecorrente(){
+  const cartaoId=parseInt(document.getElementById('cr-cartao-id')?.value);
+  const name=document.getElementById('cr-name')?.value.trim();
+  const subitems=getCrSubitems();
+  const value=subitems.length?subitems.reduce((t,s)=>t+s.value,0):parseFloat(document.getElementById('cr-val')?.value)||0;
+  const obs=document.getElementById('cr-obs')?.value.trim()||'';
+  if(!name||value<=0){toast('Preencha nome e valor!','var(--red)');return;}
+  await recorrentesAdd({cartaoId,name,value,subitems,obs,createdAt:Date.now()});
+  toast('Recorrência adicionada!','var(--teal)');
+  closeModal();renderCards();
+}
+async function saveRecorrenteEdit(id){
+  const name=document.getElementById('cr-name')?.value.trim();
+  const subitems=getCrSubitems();
+  const value=subitems.length?subitems.reduce((t,s)=>t+s.value,0):parseFloat(document.getElementById('cr-val')?.value)||0;
+  const obs=document.getElementById('cr-obs')?.value.trim()||'';
+  if(!name||value<=0){toast('Preencha nome e valor!','var(--red)');return;}
+  const all=await recorrentesAll();
+  const existing=all.find(r=>r.id===id);
+  if(!existing)return;
+  await recorrentesPut({...existing,name,value,subitems,obs});
+  toast('Atualizado!','var(--teal)');
+  closeModal();renderCards();
+}
+async function editRecorrente(id){
+  const all=await recorrentesAll();
+  const rec=all.find(r=>r.id===id);
+  if(rec)showAddRecorrenteModal(rec.cartaoId,rec);
+}
+async function deleteRecorrente(id){
+  showConfirm('Remover recorrência','Será removida de todas as faturas futuras.',[
+    {label:'Remover',cls:'btn-danger',action:async()=>{
+      await recorrentesDel(id);
+      toast('Removida','var(--red)');
+      renderCards();
+    }},
+    {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+  ]);
+}
 // Retorna valor do gasto para a fatura indicada, considerando subRepeatStart
 function gastoValueForFatura(gasto, fatMonth, fatYear){
   if(!gasto.subRepeatStart||!gasto.subitems?.length)return{value:gasto.value,subitems:gasto.subitems||[]};
@@ -1463,6 +1575,9 @@ async function calcLimiteUsado(cartao, allGastos){
       }
     }
   }
+  // somar recorrentes do cartao (aparecem em todas as faturas futuras)
+  const allRec=await recorrentesAll();
+  for(const rec of allRec.filter(r=>r.cartaoId===cartao.id))total+=rec.value;
   return total;
 }
 async function renderCards(){
@@ -1500,6 +1615,10 @@ async function renderCards(){
       return{...g,value:res.value,_activeSubs:res.subitems};
     }).filter(Boolean);
     const total=gastosFatura.reduce((s,g)=>s+g.value,0);
+    const allRecorrentes2=await recorrentesAll();
+    const recDoCartao2=allRecorrentes2.filter(r=>r.cartaoId===cartao.id);
+    const totalRec2=recDoCartao2.reduce((s,r)=>s+r.value,0);
+    const totalComRec=total+totalRec2;
     const limiteUsado=cartao.limite?await calcLimiteUsado(cartao,allGastos):null;
     const limitePct=cartao.limite?Math.min(100,limiteUsado/cartao.limite*100):0;
     const limiteColor=limitePct>=90?'var(--red)':limitePct>=70?'var(--amber)':'var(--green)';
@@ -1517,7 +1636,7 @@ async function renderCards(){
           <button class="tx-btn del" onclick="deleteCartao(${cartao.id})">✕</button>
         </div>
       </div>
-      <div class="card-total${total===0?' zero':''}">${total===0?'R$ 0,00':'-'+fmt(total)}</div>
+      <div class="card-total${totalComRec===0?' zero':''}">${totalComRec===0?'R$ 0,00':'-'+fmt(totalComRec)}</div>
       ${cartao.limite?'<div style="margin-top:6px">'+
         '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text3);margin-bottom:4px">'+
         '<span>Usado: '+fmt(limiteUsado)+' / '+fmt(cartao.limite)+'</span>'+
@@ -1529,8 +1648,35 @@ async function renderCards(){
         (limitePct>=90?'<div style="font-size:11px;color:var(--red);margin-top:3px">⚠️ Próximo do limite</div>':'')+
         '</div>':''}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:8px">
-        <span style="font-size:12px;color:var(--text3)">${gastosFatura.length} gasto(s) na fatura atual</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:12px;color:var(--text3)">${gastosFatura.length} gasto(s)</span>
+          ${recDoCartao2.length===0?'<button class="btn btn-ghost btn-sm" onclick="showAddRecorrenteModal('+cartao.id+')">+ Recorr\xc3\xaancia</button>':''}
+        </div>
         <button class="btn btn-primary btn-sm" onclick="showAddGastoModal(${cartao.id},${JSON.stringify(cartao).replace(/"/g,'&quot;')})">+ Gasto</button>
+      </div>
+      ${recDoCartao2.length?'<div style="margin-top:12px;margin-bottom:6px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+        '<span style="font-size:12px;font-weight:600;color:var(--text2)">🔄 Recorrências</span>'+
+        '<button class="btn btn-ghost btn-sm" onclick="showAddRecorrenteModal('+cartao.id+')">+ Nova</button>'+
+        '</div>'+
+        recDoCartao2.map(r=>{
+          const subHtmlR=r.subitems&&r.subitems.length?renderSubitemsHtml(r.subitems):'';
+          return '<div class="card-gasto-item" style="flex-direction:column;align-items:stretch;border-left:3px solid var(--teal)">'+
+            '<div style="display:flex;align-items:center;gap:10px">'+
+            '<div class="card-gasto-info">'+
+            '<div class="card-gasto-name">'+r.name+'</div>'+
+            (r.obs?'<div class="card-gasto-meta"><span>💬 '+r.obs+'</span></div>':'')+
+            '</div>'+
+            '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
+            '<div class="card-gasto-val">-'+fmt(r.value)+'</div>'+
+            '<button class="tx-btn edit" onclick="editRecorrente('+r.id+')">\xe2\x9c\x8f\xef\xb8\x8f</button>'+
+            '<button class="tx-btn del" onclick="deleteRecorrente('+r.id+')">\xe2\x9c\x95</button>'+
+            '</div></div>'+
+            (subHtmlR?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+subHtmlR+'</div>':'')+
+            '</div>';
+        }).join('')+
+        '</div>':''}\r\n      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:4px">
+        <span style="font-size:12px;color:var(--text3)">🛒 Gastos da fatura (${gastosFatura.length})</span>
       </div>
       ${gastosFatura.length?gastosFatura.sort((a,b)=>(b.date||'')>(a.date||'')?-1:1).map(g=>{
         const subHtml=g._activeSubs&&g._activeSubs.length?renderSubitemsHtml(g._activeSubs):'';
@@ -1591,15 +1737,19 @@ async function getCartaoBudgetItems(targetMonth, targetYear){
       if(!res)return null;
       return{...g,value:res.value};
     }).filter(Boolean);
-    const total = gastosAtivos.reduce((s,g)=>s+g.value, 0);
+    const allRecorrentes=await recorrentesAll();
+    const recDoCartao=allRecorrentes.filter(r=>r.cartaoId===cartao.id);
+    const totalGastos=gastosAtivos.reduce((s,g)=>s+g.value,0);
+    const totalRec=recDoCartao.reduce((s,r)=>s+r.value,0);
+    const total=totalGastos+totalRec;
     const vencDate = getFaturaVencimento(ty, tm, cartao);
-    const obsLines = gastosAtivos.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+    const obsLines = [...gastosAtivos,...recDoCartao].map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
     const pessoa = cartao.pessoaId ? pessoaMap[cartao.pessoaId] : null;
     result.push({
       _isCartao: true,
       _cartaoId: cartao.id,
       _cartao: cartao,
-      _gastos: gastosAtivos,
+      _gastos: [...gastosAtivos,...recDoCartao.map(r=>({...r,_isRecorrente:true}))],
       _pessoa: pessoa,
       id: 'cartao_'+cartao.id,
       name: cartao.name,
@@ -2848,11 +2998,12 @@ async function toggleBudgetDone(budgetId){
       const cartao=cartoes.find(c=>c.id===cartaoId);
       if(!cartao)return;
       const gastosFatura=await getCartaoFaturaGastos(cartaoId,curMonth,curYear);
-      const total=gastosFatura.reduce((s,g)=>s+g.value,0);
+      const allRec2=await recorrentesAll();
+      const recFatura=allRec2.filter(r=>r.cartaoId===cartaoId);
+      const total=(gastosFatura.reduce((s,g)=>s+g.value,0))+(recFatura.reduce((s,r)=>s+r.value,0));
       const vencDate=getFaturaVencimento(curYear,curMonth,cartao);
-      const obsLines=gastosFatura.map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
-      // Build subitems from gastos for display in txCard
-      const txSubitems=gastosFatura.map(g=>({name:g.name,value:g.value}));
+      const obsLines=[...gastosFatura,...recFatura].map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+      const txSubitems=[...gastosFatura,...recFatura].map(g=>({name:g.name,value:g.value}));
       const txId=await dbAdd({
         name:'Fatura '+cartao.name,value:total,type:'credit',
         month:curMonth,year:curYear,ym:ym(curYear,curMonth),

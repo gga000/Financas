@@ -1127,13 +1127,17 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
     if(isEdit&&gasto.subitems?.length){
       const srs=gasto.subRepeatStart;
       const fatM=getFaturaMonth(gasto.date,cartao);
-      const startM=srs?srs.month:(fatM?fatM.month:curMonth);
-      const startY=srs?srs.year:(fatM?fatM.year:curYear);
-      const elap=(curYear*12+curMonth)-(startY*12+startM);
+      const defaultM=srs?srs.month:(fatM?fatM.month:curMonth);
+      const defaultY=srs?srs.year:(fatM?fatM.year:curYear);
       gasto.subitems.forEach(s=>{
         const rep=s.repeat||0;
+        // usar start individual ou defaultStart (subRepeatStart do gasto)
+        const sM=s.startMonth!=null?s.startMonth:defaultM;
+        const sY=s.startYear!=null?s.startYear:defaultY;
+        const elap=(curYear*12+curMonth)-(sY*12+sM);
         if(rep>0&&elap>=rep)return; // ja acabou
-        addGastoSubitem(s.name,s.value,rep,s.sgid||'',s.skip||[]);
+        // passar o start resolvido para o row (mesmo que venha do default)
+        addGastoSubitem(s.name,s.value,rep,s.sgid||'',s.skip||[],sM,sY);
       });
     }
   },50);
@@ -1201,7 +1205,7 @@ function toggleGastoParcela(checked){
   const area=document.getElementById('cg-parcela-area');
   if(area)area.style.display=checked?'block':'none';
 }
-function addGastoSubitem(name='',value='',repeat=1,sgid='',skip=[]){
+function addGastoSubitem(name='',value='',repeat=1,sgid='',skip=[],startMonth=null,startYear=null){
   const area=document.getElementById('cg-subitems-area');
   if(!area)return;
   const row=document.createElement('div');
@@ -1210,6 +1214,8 @@ function addGastoSubitem(name='',value='',repeat=1,sgid='',skip=[]){
   const sid=hasRepeat?(sgid||Date.now().toString(36)+Math.random().toString(36).slice(2,5)):'';
   if(sid)row.dataset.sgid=sid;
   if(skip&&skip.length)row.dataset.skip=JSON.stringify(skip);
+  if(startMonth!=null)row.dataset.startMonth=String(startMonth);
+  if(startYear!=null)row.dataset.startYear=String(startYear);
   row.innerHTML=`
     <input class="sub-name" placeholder="Nome" value="${name}">
     <input class="sub-value" type="number" step="0.01" placeholder="0,00" value="${value}" oninput="updateGastoSubtotal()">
@@ -1235,7 +1241,10 @@ function removeGastoSubitem(btn){
   const hasRepeatCtx=modal&&modal.dataset.subRepeatStart&&modal.dataset.editingGastoId;
   if(!sgid||!hasRepeatCtx){row.remove();updateGastoSubtotal();return;}
   const srs=JSON.parse(modal.dataset.subRepeatStart);
-  const elapsed=(curYear*12+curMonth)-(srs.year*12+srs.month);
+  // usar start individual do subitem se disponivel
+  const rowSM=row.dataset.startMonth!=null?parseInt(row.dataset.startMonth):srs.month;
+  const rowSY=row.dataset.startYear!=null?parseInt(row.dataset.startYear):srs.year;
+  const elapsed=(curYear*12+curMonth)-(rowSY*12+rowSM);
   const name=row.querySelector('.sub-name').value.trim()||'este subitem';
   const rep=parseInt(row.querySelector('.sub-repeat')?.value)||0;
   const remaining=rep-elapsed;
@@ -1279,7 +1288,14 @@ function getRawGastoSubitems(){
     const sgid=r.dataset.sgid||'';
     if(r.dataset.repeatCap!=null)repeat=parseInt(r.dataset.repeatCap)||1;
     const skip=r.dataset.skip?JSON.parse(r.dataset.skip):[];
-    return skip.length?{name,value,repeat,sgid,skip}:{name,value,repeat,sgid};
+    const startMonth=r.dataset.startMonth!=null?parseInt(r.dataset.startMonth):null;
+    const startYear=r.dataset.startYear!=null?parseInt(r.dataset.startYear):null;
+    const hasStart=startMonth!=null&&startYear!=null;
+    if(repeat>0){
+      const base=skip.length?{name,value,repeat,sgid,skip}:{name,value,repeat,sgid};
+      return hasStart?{...base,startMonth,startYear}:base;
+    }
+    return{name,value};
   }).filter(Boolean);
 }
 async function saveGasto(){
@@ -1375,8 +1391,27 @@ async function saveGastoEdit(id){
     }
   }
   // Single gasto (no series or no future)
-  const gsubs2=getRawGastoSubitems();
-  const hasSubRep2=gsubs2.length>0;
+  const gsubs2Raw=getRawGastoSubitems();
+  const hasSubRep2=gsubs2Raw.length>0;
+  // fatura atual para novos subitems adicionados agora
+  const faturaEditAtual={month:curMonth,year:curYear};
+  // start padrao = subRepeatStart do gasto (para subitems antigos sem start proprio)
+  const defaultStart=existing.subRepeatStart||faturaEditAtual;
+  // mapear subitems do banco por sgid (preferencia) ou nome+valor
+  const bankBySgid=new Map((existing.subitems||[]).filter(s=>s.sgid).map(s=>[s.sgid,s]));
+  const bankByKey=new Map((existing.subitems||[]).map(s=>[(s.name||'')+'|'+(s.value||0),s]));
+  const gsubs2=gsubs2Raw.map(s=>{
+    const bankSub=(s.sgid&&bankBySgid.get(s.sgid))||bankByKey.get((s.name||'')+'|'+(s.value||0));
+    if(bankSub){
+      // subitem existente: usar start do banco se tiver, senao usar defaultStart
+      const sM=bankSub.startMonth!=null?bankSub.startMonth:defaultStart.month;
+      const sY=bankSub.startYear!=null?bankSub.startYear:defaultStart.year;
+      return{...s,startMonth:sM,startYear:sY};
+    }
+    // subitem novo: recebe start da fatura atual de edicao
+    if(s.repeat>0)return{...s,startMonth:faturaEditAtual.month,startYear:faturaEditAtual.year};
+    return s;
+  });
   // mesclar subitems do DOM com encerrados do banco
   let finalGsubs=gsubs2;
   if(existing.subRepeatStart&&existing.subitems?.length){
@@ -1385,8 +1420,16 @@ async function saveGastoEdit(id){
     const ended=existing.subitems.filter(s=>(s.repeat||0)>0&&elapE>=(s.repeat||0));
     finalGsubs=[...gsubs2,...ended];
   }
-  const srs2=hasSubRep2?(existing.subRepeatStart||getFaturaMonth(date,cartaoEdit)||null):null;
-  const gval2=finalGsubs.length?finalGsubs.filter(s=>!(s.repeat&&(curYear*12+curMonth-(srs2?srs2.year*12+srs2.month:0))>=(s.repeat||0))).reduce((t,s)=>t+s.value,0)||val:val;
+  // subRepeatStart do gasto = o start mais antigo entre todos os subitems
+  const srs2=(()=>{
+    if(!hasSubRep2)return null;
+    const candidates=[existing.subRepeatStart,faturaEditAtual].filter(Boolean);
+    finalGsubs.forEach(s=>{if(s.startMonth!=null)candidates.push({month:s.startMonth,year:s.startYear});});
+    return candidates.reduce((min,c)=>(!min||c.year*12+c.month<min.year*12+min.month)?c:min,null);
+  })();
+  // calcular valor ativo para o mes atual
+  const activeNow=srs2?getActiveSubitems(finalGsubs,srs2.month,srs2.year,curMonth,curYear):finalGsubs;
+  const gval2=activeNow.length?activeNow.reduce((t,s)=>t+s.value,0):val;
   await gastosPut({...existing,name,value:gval2,rawExpr:cgRawExpr,date,obs,
     subitems:finalGsubs.length?finalGsubs:undefined,
     subRepeatStart:srs2||existing.subRepeatStart||undefined,
@@ -2211,21 +2254,21 @@ function getRawSubitems(){
 // Retorna os subitems ativos para um dado mes/ano, com label 'Nome X/N' quando repeat
 function getActiveSubitems(subitems, startMonth, startYear, curM, curY){
   if(!subitems||!subitems.length)return[];
-  const elapsed=(curY*12+curM)-(startYear*12+startMonth);
   const result=[];
   subitems.forEach(s=>{
+    // subitem pode ter start proprio (adicionado em mes diferente)
+    const sM=s.startMonth!=null?s.startMonth:startMonth;
+    const sY=s.startYear!=null?s.startYear:startYear;
+    const elapsed=(curY*12+curM)-(sY*12+sM);
     const rep=s.repeat; // 0/undefined=fixo, N>=1=limitado
     const skip=s.skip||[];
     if(!rep){
-      if(!skip.includes(elapsed))result.push({name:s.name,value:s.value}); // fixo: sempre (exceto skips)
+      if(!skip.includes(elapsed))result.push({name:s.name,value:s.value});
     } else if(elapsed>=0&&elapsed<rep){
       if(!skip.includes(elapsed)){
-        // dentro do range e nao pulado: mostrar com label X/N
         result.push({name:s.name+' '+(elapsed+1)+'/'+rep,value:s.value});
       }
     }
-    // elapsed<0: ainda nao comecou - nao mostra
-    // elapsed>=rep: acabou - nao mostra
   });
   return result;
 }

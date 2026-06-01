@@ -1241,9 +1241,15 @@ function removeGastoSubitem(btn){
   const sgid=row.dataset.sgid||'';
   const modal=document.getElementById('modal-content');
   const hasRepeatCtx=modal&&modal.dataset.subRepeatStart&&modal.dataset.editingGastoId;
-  // repeat=1 (unico) ou sem contexto de repeat: remove direto
   const repVal=parseInt(row.querySelector('.sub-repeat')?.value)||1;
-  if(!sgid||!hasRepeatCtx||repVal<=1){row.remove();updateGastoSubtotal();return;}
+  if(!sgid||!hasRepeatCtx||repVal<=1){
+    const nm=row.querySelector('.sub-name').value.trim()||'este subitem';
+    showConfirm('Remover subitem','Remover "'+nm+'"?',[
+      {label:'Remover',cls:'btn-danger',action:()=>{row.remove();updateGastoSubtotal();}},
+      {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+    ]);
+    return;
+  }
   const srs=JSON.parse(modal.dataset.subRepeatStart);
   // usar start individual do subitem se disponivel
   const rowSM=row.dataset.startMonth!=null?parseInt(row.dataset.startMonth):srs.month;

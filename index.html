@@ -3262,11 +3262,16 @@ async function renderBudget(){
   document.getElementById('budget-summary-card').style.display='block';
   document.getElementById('budget-progress-fill').style.width=pctAll+'%';
   document.getElementById('budget-progress-fill').style.background=pctAll<50?'var(--amber)':pctAll<100?'var(--blue)':'var(--green)';
+  const doneSaldo=doneIncome-doneExpense;
+  const totalSaldo=totalIncome-totalExpense;
+  const saldoColor=doneSaldo>=0?'var(--green)':'var(--red)';
+  const totalSaldoColor=totalSaldo>=0?'var(--green)':'var(--red)';
   document.getElementById('budget-summary-text').innerHTML=
     `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-size:12px">
       <span style="color:var(--text2)">${doneCount}/${items.length} realizados</span>
       <span style="color:var(--green)">💵 ${fmt(doneIncome)} <span style="color:var(--text3)">/ ${fmt(totalIncome)}</span></span>
       <span style="color:var(--red)">📤 ${fmt(doneExpense)} <span style="color:var(--text3)">/ ${fmt(totalExpense)}</span></span>
+      <span style="color:${saldoColor}">⚖️ ${doneSaldo>=0?'+':'-'}${fmt(Math.abs(doneSaldo))} <span style="color:${totalSaldoColor}">/ ${totalSaldo>=0?'+':'-'}${fmt(Math.abs(totalSaldo))}</span></span>
     </div>`;
   const sorted=[...enrichedItems].sort((a,b)=>{
     const ad=doneIds.has(a.id)?1:0,bd=doneIds.has(b.id)?1:0;

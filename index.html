@@ -1205,7 +1205,7 @@ function toggleGastoParcela(checked){
   const area=document.getElementById('cg-parcela-area');
   if(area)area.style.display=checked?'block':'none';
 }
-function addGastoSubitem(name='',value='',repeat=1,sgid='',skip=[],startMonth=null,startYear=null){
+function addGastoSubitem(name='',value='',repeat=0,sgid='',skip=[],startMonth=null,startYear=null){
   const area=document.getElementById('cg-subitems-area');
   if(!area)return;
   const row=document.createElement('div');
@@ -1247,8 +1247,9 @@ function removeGastoSubitem(btn){
   const elapsed=(curYear*12+curMonth)-(rowSY*12+rowSM);
   const name=row.querySelector('.sub-name').value.trim()||'este subitem';
   const rep=parseInt(row.querySelector('.sub-repeat')?.value)||0;
-  const remaining=rep-elapsed;
-  showConfirm('Remover subitem','"'+name+'" — '+remaining+' mês(es) restante(s).',[
+  const remaining=Math.max(0,rep-elapsed);
+  const remainMsg=remaining>0?remaining+' mês(es) restante(s).':'Expira neste mês.';
+  showConfirm('Remover subitem','"'+name+'" — '+remainMsg,[
     {label:'Só este mês',cls:'btn-ghost',action:()=>{
       const skips=row.dataset.skip?JSON.parse(row.dataset.skip):[];
       skips.push(elapsed);
@@ -1284,7 +1285,7 @@ function getRawGastoSubitems(){
     if(!name||value<=0)return null;
     const repeatInp=r.querySelector('.sub-repeat');
     const repeatActive=repeatInp&&repeatInp.style.display!=='none';
-    let repeat=repeatActive?Math.max(1,parseInt(repeatInp.value)||1):1; // default=1 (unico)
+    let repeat=repeatActive?Math.max(1,parseInt(repeatInp.value)||1):0; // 0=sem limite de repeticao
     const sgid=r.dataset.sgid||'';
     if(r.dataset.repeatCap!=null)repeat=parseInt(r.dataset.repeatCap)||1;
     const skip=r.dataset.skip?JSON.parse(r.dataset.skip):[];
@@ -1324,7 +1325,7 @@ async function saveGasto(){
     toast((ptotal-pnum+1)+' parcelas adicionadas!','var(--purple)');
   }else{
     const gsubs=getRawGastoSubitems();
-    const hasSubRep=gsubs.length>0; // todo subitem de gasto tem repeat>=1
+    const hasSubRep=gsubs.some(s=>s.repeat>0);
     const fatM=getFaturaMonth(date,cartaoObj);
     const srs=hasSubRep&&fatM?{month:fatM.month,year:fatM.year}:null;
     const gval=gsubs.length?gsubs.reduce((t,s)=>t+s.value,0):val;
@@ -1392,7 +1393,7 @@ async function saveGastoEdit(id){
   }
   // Single gasto (no series or no future)
   const gsubs2Raw=getRawGastoSubitems();
-  const hasSubRep2=gsubs2Raw.length>0;
+  const hasSubRep2=gsubs2Raw.some(s=>s.repeat>0);
   // fatura atual para novos subitems adicionados agora
   const faturaEditAtual={month:curMonth,year:curYear};
   // start padrao = subRepeatStart do gasto (para subitems antigos sem start proprio)

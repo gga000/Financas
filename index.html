@@ -1394,41 +1394,43 @@ async function saveGastoEdit(id){
   // Single gasto (no series or no future)
   const gsubs2Raw=getRawGastoSubitems();
   const hasSubRep2=gsubs2Raw.some(s=>s.repeat>0);
-  // fatura atual para novos subitems adicionados agora
   const faturaEditAtual={month:curMonth,year:curYear};
-  // start padrao = subRepeatStart do gasto (para subitems antigos sem start proprio)
   const defaultStart=existing.subRepeatStart||faturaEditAtual;
-  // mapear subitems do banco por sgid (preferencia) ou nome+valor
+  // 1. Resolver start de cada subitem do DOM
   const bankBySgid=new Map((existing.subitems||[]).filter(s=>s.sgid).map(s=>[s.sgid,s]));
   const bankByKey=new Map((existing.subitems||[]).map(s=>[(s.name||'')+'|'+(s.value||0),s]));
   const gsubs2=gsubs2Raw.map(s=>{
     const bankSub=(s.sgid&&bankBySgid.get(s.sgid))||bankByKey.get((s.name||'')+'|'+(s.value||0));
     if(bankSub){
-      // subitem existente: usar start do banco se tiver, senao usar defaultStart
       const sM=bankSub.startMonth!=null?bankSub.startMonth:defaultStart.month;
       const sY=bankSub.startYear!=null?bankSub.startYear:defaultStart.year;
       return{...s,startMonth:sM,startYear:sY};
     }
-    // subitem novo: recebe start da fatura atual de edicao
     if(s.repeat>0)return{...s,startMonth:faturaEditAtual.month,startYear:faturaEditAtual.year};
     return s;
   });
-  // mesclar subitems do DOM com encerrados do banco
-  let finalGsubs=gsubs2;
-  if(existing.subRepeatStart&&existing.subitems?.length){
-    const srsE=existing.subRepeatStart;
-    const elapE=(curYear*12+curMonth)-(srsE.year*12+srsE.month);
-    const ended=existing.subitems.filter(s=>(s.repeat||0)>0&&elapE>=(s.repeat||0));
-    finalGsubs=[...gsubs2,...ended];
-  }
-  // subRepeatStart do gasto = o start mais antigo entre todos os subitems
+  // 2. Subitems encerrados do banco (repeat>0 e expirado pelo seu start individual)
+  // nao incluir os que ja estao no DOM (evita duplicata)
+  const domSgids=new Set(gsubs2.map(s=>s.sgid).filter(Boolean));
+  const domKeys=new Set(gsubs2.map(s=>(s.name||'')+'|'+(s.value||0)));
+  const ended=(existing.subitems||[]).filter(s=>{
+    if((s.repeat||0)===0)return false; // sem repeat nao encerra
+    if(s.sgid&&domSgids.has(s.sgid))return false; // ja no DOM
+    if(domKeys.has((s.name||'')+'|'+(s.value||0)))return false; // ja no DOM por chave
+    const sM=s.startMonth!=null?s.startMonth:defaultStart.month;
+    const sY=s.startYear!=null?s.startYear:defaultStart.year;
+    const elap=(curYear*12+curMonth)-(sY*12+sM);
+    return elap>=(s.repeat||0); // expirado
+  });
+  const finalGsubs=[...gsubs2,...ended];
+  // 3. subRepeatStart = start mais antigo
   const srs2=(()=>{
     if(!hasSubRep2)return null;
-    const candidates=[existing.subRepeatStart,faturaEditAtual].filter(Boolean);
-    finalGsubs.forEach(s=>{if(s.startMonth!=null)candidates.push({month:s.startMonth,year:s.startYear});});
-    return candidates.reduce((min,c)=>(!min||c.year*12+c.month<min.year*12+min.month)?c:min,null);
+    const candidates=finalGsubs.filter(s=>s.startMonth!=null).map(s=>({month:s.startMonth,year:s.startYear}));
+    if(existing.subRepeatStart)candidates.push(existing.subRepeatStart);
+    if(!candidates.length)return faturaEditAtual;
+    return candidates.reduce((min,c)=>c.year*12+c.month<min.year*12+min.month?c:min);
   })();
-  // calcular valor ativo para o mes atual
   const activeNow=srs2?getActiveSubitems(finalGsubs,srs2.month,srs2.year,curMonth,curYear):finalGsubs;
   const gval2=activeNow.length?activeNow.reduce((t,s)=>t+s.value,0):val;
   await gastosPut({...existing,name,value:gval2,rawExpr:cgRawExpr,date,obs,

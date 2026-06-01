@@ -1136,7 +1136,7 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
         const sY=s.startYear!=null?s.startYear:defaultY;
         const elap=(curYear*12+curMonth)-(sY*12+sM);
         if(rep>0&&elap>=rep)return; // ja acabou
-        // passar o start resolvido para o row (mesmo que venha do default)
+        if(elap<0)return; // ainda nao comecou neste mes
         addGastoSubitem(s.name,s.value,rep,s.sgid||'',s.skip||[],sM,sY);
       });
     }
@@ -1205,7 +1205,7 @@ function toggleGastoParcela(checked){
   const area=document.getElementById('cg-parcela-area');
   if(area)area.style.display=checked?'block':'none';
 }
-function addGastoSubitem(name='',value='',repeat=0,sgid='',skip=[],startMonth=null,startYear=null){
+function addGastoSubitem(name='',value='',repeat=1,sgid='',skip=[],startMonth=null,startYear=null){
   const area=document.getElementById('cg-subitems-area');
   if(!area)return;
   const row=document.createElement('div');
@@ -1285,18 +1285,16 @@ function getRawGastoSubitems(){
     if(!name||value<=0)return null;
     const repeatInp=r.querySelector('.sub-repeat');
     const repeatActive=repeatInp&&repeatInp.style.display!=='none';
-    let repeat=repeatActive?Math.max(1,parseInt(repeatInp.value)||1):0; // 0=sem limite de repeticao
+    let repeat=repeatActive?Math.max(1,parseInt(repeatInp.value)||1):1; // 1=unico (so esta fatura)
     const sgid=r.dataset.sgid||'';
     if(r.dataset.repeatCap!=null)repeat=parseInt(r.dataset.repeatCap)||1;
     const skip=r.dataset.skip?JSON.parse(r.dataset.skip):[];
     const startMonth=r.dataset.startMonth!=null?parseInt(r.dataset.startMonth):null;
     const startYear=r.dataset.startYear!=null?parseInt(r.dataset.startYear):null;
     const hasStart=startMonth!=null&&startYear!=null;
-    if(repeat>0){
-      const base=skip.length?{name,value,repeat,sgid,skip}:{name,value,repeat,sgid};
-      return hasStart?{...base,startMonth,startYear}:base;
-    }
-    return{name,value};
+    // repeat sempre > 0 nos gastos (1=unico, N=N meses)
+    const base=skip.length?{name,value,repeat,sgid,skip}:{name,value,repeat,sgid};
+    return hasStart?{...base,startMonth,startYear}:base;
   }).filter(Boolean);
 }
 async function saveGasto(){
@@ -1325,7 +1323,7 @@ async function saveGasto(){
     toast((ptotal-pnum+1)+' parcelas adicionadas!','var(--purple)');
   }else{
     const gsubs=getRawGastoSubitems();
-    const hasSubRep=gsubs.some(s=>s.repeat>0);
+    const hasSubRep=gsubs.length>0;
     const fatM=getFaturaMonth(date,cartaoObj);
     const srs=hasSubRep&&fatM?{month:fatM.month,year:fatM.year}:null;
     const gval=gsubs.length?gsubs.reduce((t,s)=>t+s.value,0):val;
@@ -1393,7 +1391,7 @@ async function saveGastoEdit(id){
   }
   // Single gasto (no series or no future)
   const gsubs2Raw=getRawGastoSubitems();
-  const hasSubRep2=gsubs2Raw.some(s=>s.repeat>0);
+  const hasSubRep2=gsubs2Raw.length>0;
   const faturaEditAtual={month:curMonth,year:curYear};
   const defaultStart=existing.subRepeatStart||faturaEditAtual;
   // 1. Resolver start de cada subitem do DOM
@@ -1414,13 +1412,14 @@ async function saveGastoEdit(id){
   const domSgids=new Set(gsubs2.map(s=>s.sgid).filter(Boolean));
   const domKeys=new Set(gsubs2.map(s=>(s.name||'')+'|'+(s.value||0)));
   const ended=(existing.subitems||[]).filter(s=>{
-    if((s.repeat||0)===0)return false; // sem repeat nao encerra
+    const sRep=s.repeat||1; // subitems antigos sem repeat tratados como repeat=1
+    if(sRep===0)return false;
     if(s.sgid&&domSgids.has(s.sgid))return false; // ja no DOM
     if(domKeys.has((s.name||'')+'|'+(s.value||0)))return false; // ja no DOM por chave
     const sM=s.startMonth!=null?s.startMonth:defaultStart.month;
     const sY=s.startYear!=null?s.startYear:defaultStart.year;
     const elap=(curYear*12+curMonth)-(sY*12+sM);
-    return elap>=(s.repeat||0); // expirado
+    return elap>=sRep; // expirado
   });
   const finalGsubs=[...gsubs2,...ended];
   // 3. subRepeatStart = start mais antigo

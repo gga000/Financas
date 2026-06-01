@@ -1137,6 +1137,8 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
         const elap=(curYear*12+curMonth)-(sY*12+sM);
         if(rep>0&&elap>=rep)return; // ja acabou
         if(elap<0)return; // ainda nao comecou neste mes
+        const skipArr=s.skip||[];
+        if(skipArr.includes(elap))return; // pulado neste mes
         addGastoSubitem(s.name,s.value,rep,s.sgid||'',s.skip||[],sM,sY);
       });
     }
@@ -1239,7 +1241,9 @@ function removeGastoSubitem(btn){
   const sgid=row.dataset.sgid||'';
   const modal=document.getElementById('modal-content');
   const hasRepeatCtx=modal&&modal.dataset.subRepeatStart&&modal.dataset.editingGastoId;
-  if(!sgid||!hasRepeatCtx){row.remove();updateGastoSubtotal();return;}
+  // repeat=1 (unico) ou sem contexto de repeat: remove direto
+  const repVal=parseInt(row.querySelector('.sub-repeat')?.value)||1;
+  if(!sgid||!hasRepeatCtx||repVal<=1){row.remove();updateGastoSubtotal();return;}
   const srs=JSON.parse(modal.dataset.subRepeatStart);
   // usar start individual do subitem se disponivel
   const rowSM=row.dataset.startMonth!=null?parseInt(row.dataset.startMonth):srs.month;

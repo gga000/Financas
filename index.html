@@ -3076,6 +3076,7 @@ async function saveBudgetEdit(id){
         {label:'Apenas esta',cls:'btn-ghost',action:async()=>{
           const dEd=getBudgetDelayed();
           if(dEd&&dEd.to){
+            // mover para outro periodo
             const toM=dEd.to.month,toY=dEd.to.year;
             const fromM=existing.budgetMonth!=null?existing.budgetMonth:curMonth;
             const fromY=existing.budgetYear!=null?existing.budgetYear:curYear;
@@ -3086,6 +3087,16 @@ async function saveBudgetEdit(id){
               budgetMonth:toM,budgetYear:toY,
               delayed:true,delayedFrom:{month:fromM,year:fromY},delayedTo:{month:toM,year:toY}});
             toast('Parcela movida para '+MONTHS[toM].slice(0,3)+'/'+toY,'var(--amber)');
+          }else if(existing.delayed&&!dEd){
+            // desmarcar delayed: voltar ao periodo original
+            const restM=existing.delayedFrom?existing.delayedFrom.month:existing.budgetMonth;
+            const restY=existing.delayedFrom?existing.delayedFrom.year:existing.budgetYear;
+            await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+              pessoaId:bPessoaId,recurrence:'once',
+              installmentCur:existing.installmentCur,installmentTotal:existing.installmentTotal,
+              budgetMonth:restM,budgetYear:restY,
+              delayed:false,delayedFrom:null,delayedTo:null});
+            toast('Parcela restaurada!','var(--teal)');
           }else{
             await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
               pessoaId:bPessoaId,recurrence:'once',

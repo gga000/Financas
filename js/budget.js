@@ -90,9 +90,16 @@ async function openBudgetValNumpad(){
   }
 }
 async function showBudgetEditById(id){
-  const all=await budgetAll();
-  const item=all.find(x=>x.id===id);
-  if(item)showBudgetAddModal(item);
+
+  try{
+    const all=await budgetAll();
+    const item=all.find(x=>x.id===id);
+    if(item)showBudgetAddModal(item);
+
+  }catch(e){
+    console.error('[showBudgetEditById]',e);
+    toast('Erro ao abrir item','var(--red)');
+  }
 }
 function showBudgetAddModal(item=null){
   const isEdit=!!item;
@@ -290,405 +297,433 @@ function getBudgetRecurrence(){
   return{recurrence:'once',installmentCur:null,installmentTotal:null};
 }
 async function saveBudgetItem(){
-  const subitems=getRawSubitems();
-  const name=document.getElementById('b-name')?.value.trim();
-  const val=getBudgetVal();
-  const type=document.getElementById('b-type')?.value;
-  const dueDay=parseInt(document.getElementById('b-day')?.value)||null;
-  const dueMonthOffset=parseInt(document.getElementById('b-due-offset')?.value)||0;
-  const obs=document.getElementById('b-obs')?.value.trim()||'';
-  const bPessoaId=getSelectedPessoa('b-pessoa-chips');
-  const bRawExpr=getBudgetRawExpr();
-  const{recurrence,installmentCur,installmentTotal}=getBudgetRecurrence();
-  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
-  if(recurrence==='installments'&&installmentTotal>1){
-    // Create N installment items starting from installmentCur
-        const bGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    for(let i=installmentCur-1;i<installmentTotal;i++){
-      const label=name+' '+(i+1)+'/'+installmentTotal;
-      await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-        pessoaId:bPessoaId,recurrence:'once',groupId:bGroupId,
-        installmentCur:i+1,installmentTotal,
-        budgetMonth:(curMonth+i-(installmentCur-1)+1200)%12,
-        budgetYear:curYear+Math.floor((curMonth+i-(installmentCur-1))/12),
-        createdAt:Date.now()});
-    }
-    toast(installmentTotal-installmentCur+1+' parcelas adicionadas!','var(--teal)');
-  }else{
-    // item fixo com subitems que tem repeat: salva 1 registro always com subitems raw
-    const hasSubRepeat=subitems.some(s=>s.repeat>0);
-    if(hasSubRepeat&&recurrence!=='installments'){
-      await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-        pessoaId:bPessoaId,recurrence:'always',
-        subRepeatStart:{month:curMonth,year:curYear},
-        budgetMonth:null,budgetYear:null,createdAt:Date.now()});
-      toast('Item adicionado!','var(--teal)');
+
+  try{
+    const subitems=getRawSubitems();
+    const name=document.getElementById('b-name')?.value.trim();
+    const val=getBudgetVal();
+    const type=document.getElementById('b-type')?.value;
+    const dueDay=parseInt(document.getElementById('b-day')?.value)||null;
+    const dueMonthOffset=parseInt(document.getElementById('b-due-offset')?.value)||0;
+    const obs=document.getElementById('b-obs')?.value.trim()||'';
+    const bPessoaId=getSelectedPessoa('b-pessoa-chips');
+    const bRawExpr=getBudgetRawExpr();
+    const{recurrence,installmentCur,installmentTotal}=getBudgetRecurrence();
+    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
+    if(recurrence==='installments'&&installmentTotal>1){
+      // Create N installment items starting from installmentCur
+          const bGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      for(let i=installmentCur-1;i<installmentTotal;i++){
+        const label=name+' '+(i+1)+'/'+installmentTotal;
+        await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+          pessoaId:bPessoaId,recurrence:'once',groupId:bGroupId,
+          installmentCur:i+1,installmentTotal,
+          budgetMonth:(curMonth+i-(installmentCur-1)+1200)%12,
+          budgetYear:curYear+Math.floor((curMonth+i-(installmentCur-1))/12),
+          createdAt:Date.now()});
+      }
+      toast(installmentTotal-installmentCur+1+' parcelas adicionadas!','var(--teal)');
     }else{
-      const isDelayedNew=document.getElementById('b-delayed-toggle')?.checked;
-      await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-        pessoaId:bPessoaId,
-        recurrence:isDelayedNew?'once':recurrence,
-        installmentCur:isDelayedNew?null:installmentCur,
-        installmentTotal:isDelayedNew?null:installmentTotal,
-        budgetMonth:(isDelayedNew||recurrence==='once')?curMonth:null,
-        budgetYear:(isDelayedNew||recurrence==='once')?curYear:null,
-        delayed:isDelayedNew?true:undefined,
-        delayedFrom:isDelayedNew?{month:curMonth,year:curYear}:undefined,
-        createdAt:Date.now()});
-      toast(isDelayedNew?'Item adicionado como atrasado!':'Item adicionado!',isDelayedNew?'var(--amber)':'var(--teal)');
+      // item fixo com subitems que tem repeat: salva 1 registro always com subitems raw
+      const hasSubRepeat=subitems.some(s=>s.repeat>0);
+      if(hasSubRepeat&&recurrence!=='installments'){
+        await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+          pessoaId:bPessoaId,recurrence:'always',
+          subRepeatStart:{month:curMonth,year:curYear},
+          budgetMonth:null,budgetYear:null,createdAt:Date.now()});
+        toast('Item adicionado!','var(--teal)');
+      }else{
+        const isDelayedNew=document.getElementById('b-delayed-toggle')?.checked;
+        await budgetAdd({name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+          pessoaId:bPessoaId,
+          recurrence:isDelayedNew?'once':recurrence,
+          installmentCur:isDelayedNew?null:installmentCur,
+          installmentTotal:isDelayedNew?null:installmentTotal,
+          budgetMonth:(isDelayedNew||recurrence==='once')?curMonth:null,
+          budgetYear:(isDelayedNew||recurrence==='once')?curYear:null,
+          delayed:isDelayedNew?true:undefined,
+          delayedFrom:isDelayedNew?{month:curMonth,year:curYear}:undefined,
+          createdAt:Date.now()});
+        toast(isDelayedNew?'Item adicionado como atrasado!':'Item adicionado!',isDelayedNew?'var(--amber)':'var(--teal)');
+      }
     }
+    closeModal();renderBudget();
+
+  }catch(e){
+    console.error('[saveBudgetItem]',e);
+    toast('Erro ao salvar item','var(--red)');
   }
-  closeModal();renderBudget();
 }
 async function saveBudgetEdit(id){
-  const subitems=getRawSubitems();
-  const name=document.getElementById('b-name')?.value.trim();
-  const val=getBudgetVal();
-  const type=document.getElementById('b-type')?.value;
-  const dueDay=parseInt(document.getElementById('b-day')?.value)||null;
-  const dueMonthOffset=parseInt(document.getElementById('b-due-offset')?.value)||0;
-  const obs=document.getElementById('b-obs')?.value.trim()||'';
-  const bPessoaId=getSelectedPessoa('b-pessoa-chips');
-  const bRawExpr=getBudgetRawExpr();
-  const{recurrence,installmentCur,installmentTotal}=getBudgetRecurrence();
-  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
-  const all=await budgetAll();
-  const existing=all.find(x=>x.id===id);
-  if(!existing)return;
-  if(recurrence==='installments'&&installmentTotal>1){
-    // If converting from once/always to installments, ask for confirmation
-    if(existing.recurrence!=='installments'){
-      closeModal();
-      showConfirm('Transformar em parcelas?','O item atual será removido e '+(installmentTotal-installmentCur+1)+' parcelas serão criadas a partir deste mês.',[
-        {label:'Confirmar',cls:'btn-primary',action:async()=>{
-          await budgetDel(id);
-          const newBGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-          for(let i=installmentCur-1;i<installmentTotal;i++){
-            const label=name.replace(/\s+\d+\/\d+$/,'').trim()+' '+(i+1)+'/'+installmentTotal;
-            const mOffset=i-(installmentCur-1);
-            const rawM=curMonth+mOffset;
-            await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-              pessoaId:bPessoaId,recurrence:'once',groupId:newBGroupId,
-              installmentCur:i+1,installmentTotal,
-              budgetMonth:(rawM%12+12)%12,
-              budgetYear:curYear+Math.floor(rawM/12),
-              createdAt:Date.now()});
-          }
-          toast(installmentTotal-installmentCur+1+' parcelas criadas!','var(--teal)');
-          renderBudget();
-        }},
-        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-      ]);
-      return;
-    }
-    // Already installments - rebuild series (existing logic)
-    await budgetDel(id);
-    const newBGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    for(let i=installmentCur-1;i<installmentTotal;i++){
-      const label=name.replace(/\s+\d+\/\d+$/,'').trim()+' '+(i+1)+'/'+installmentTotal;
-      const mOffset=i-(installmentCur-1);
-      const rawM=curMonth+mOffset;
-      await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-        pessoaId:bPessoaId,recurrence:'once',groupId:newBGroupId,
-        installmentCur:i+1,installmentTotal,
-        budgetMonth:(rawM%12+12)%12,
-        budgetYear:curYear+Math.floor(rawM/12),
-        createdAt:Date.now()});
-    }
-    toast(installmentTotal-installmentCur+1+' parcelas criadas!','var(--teal)');
-    closeModal();renderBudget();
-  }else if(existing.groupId&&recurrence!=='installments'){
-    // Part of a series - offer series edit
-    const allBuds=await budgetAll();
-    // future = same group, budgetMonth >= this item's budgetMonth
-    const thisTotal=existing.budgetYear*12+existing.budgetMonth;
-    const future=allBuds.filter(b=>b.groupId===existing.groupId&&
-      b.id!==existing.id&&(b.budgetYear*12+b.budgetMonth)>thisTotal);
-    if(future.length>0){
-      closeModal();
-      showConfirm('Editar parcela do orçamento','Esta parcela faz parte de uma série.',[
-        {label:'Apenas esta',cls:'btn-ghost',action:async()=>{
-          const dEd=getBudgetDelayed();
-          if(dEd&&dEd.to){
-            // mover para outro periodo
-            const toM=dEd.to.month,toY=dEd.to.year;
-            const fromM=existing.budgetMonth!=null?existing.budgetMonth:curMonth;
-            const fromY=existing.budgetYear!=null?existing.budgetYear:curYear;
-            await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,
-              dueDay:existing.dueDay,dueMonthOffset:existing.dueMonthOffset,
-              obs,subitems,pessoaId:bPessoaId,recurrence:'once',
-              installmentCur:existing.installmentCur,installmentTotal:existing.installmentTotal,
-              budgetMonth:toM,budgetYear:toY,
-              delayed:true,delayedFrom:{month:fromM,year:fromY},delayedTo:{month:toM,year:toY}});
-            toast('Parcela movida para '+MONTHS[toM].slice(0,3)+'/'+toY,'var(--amber)');
-          }else if(existing.delayed&&!dEd){
-            // desmarcar delayed: voltar ao periodo original
-            const restM=existing.delayedFrom?existing.delayedFrom.month:existing.budgetMonth;
-            const restY=existing.delayedFrom?existing.delayedFrom.year:existing.budgetYear;
-            await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-              pessoaId:bPessoaId,recurrence:'once',
-              installmentCur:existing.installmentCur,installmentTotal:existing.installmentTotal,
-              budgetMonth:restM,budgetYear:restY,
-              delayed:false,delayedFrom:null,delayedTo:null});
-            toast('Parcela restaurada!','var(--teal)');
-          }else{
-            await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-              pessoaId:bPessoaId,recurrence:'once',
-              budgetMonth:existing.budgetMonth,budgetYear:existing.budgetYear,
-              delayed:false,delayedFrom:null,delayedTo:null});
-            toast('Parcela atualizada!','var(--teal)');
-          }
-          closeModal();renderBudget();
-        }},
-        {label:'Esta e seguintes',cls:'btn-primary',action:async()=>{
-          await budgetDel(existing.id);
-          for(const b of future) await budgetDel(b.id);
-          const newG=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-          const remaining=future.length+1;
-          const startInst=existing.installmentCur||1;
-          const totalInst=existing.installmentTotal||remaining;
-          const baseName2=(name).replace(/\s+\d+\/\d+$/,'').trim();
-          let rawM2=(existing.budgetYear*12+existing.budgetMonth)-(curYear*12+curMonth);
-          const baseYM=existing.budgetYear*12+existing.budgetMonth;
-          for(let i=0;i<remaining;i++){
-            const ym2=baseYM+i;
-            const bm=(ym2%12+12)%12;
-            const by=Math.floor(ym2/12);
-            const label2=baseName2+' '+(startInst+i)+'/'+totalInst;
-            await budgetAdd({name:label2,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-              pessoaId:bPessoaId,recurrence:'once',groupId:newG,
-              installmentCur:startInst+i,installmentTotal:totalInst,
-              budgetMonth:bm,budgetYear:by,createdAt:Date.now()});
-          }
-          toast('Série atualizada!','var(--teal)');renderBudget();
-        }},
-        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-      ]);
-      return;
-    }
-    await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
-      pessoaId:bPessoaId,recurrence:'once',
-      budgetMonth:existing.budgetMonth,budgetYear:existing.budgetYear});
-    toast('Item atualizado!','var(--teal)');
-    closeModal();renderBudget();
-  }else{
-    // Para itens com subRepeatStart: mesclar subitems do DOM com os originais do banco
-    // Os subitems que ja acabaram ficam no banco mas nao aparecem no DOM
-    let finalSubitems=subitems;
-    if(existing.subRepeatStart&&existing.subitems?.length){
-      const srs=existing.subRepeatStart;
-      const elap=(curYear*12+curMonth)-(srs.year*12+srs.month);
-      // subitems do banco que ja acabaram (nao estao no DOM)
-      const ended=existing.subitems.filter(s=>(s.repeat||0)>0&&elap>=(s.repeat||0));
-      // subitems do DOM (ativos ou marcados com skip/repeatCap)
-      finalSubitems=[...subitems,...ended];
-    }
-    const delayedEdit=getBudgetDelayed();
-    if(delayedEdit){
-      // from = onde o item esta agora (budgetMonth para once, curMonth para always)
-      const fromM=existing.budgetMonth!=null?existing.budgetMonth:curMonth;
-      const fromY=existing.budgetYear!=null?existing.budgetYear:curYear;
-      // se nao tem destino (novo item ou toggle sem select): manter no periodo atual
-      const toM=delayedEdit.to?delayedEdit.to.month:fromM;
-      const toY=delayedEdit.to?delayedEdit.to.year:fromY;
-      if(existing.delayed){
-        // ja atrasado: apenas mover para novo destino, preservar delayedFrom original
-        await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,
-          dueDay:existing.dueDay,dueMonthOffset:existing.dueMonthOffset,
-          obs,subitems:finalSubitems,
-          pessoaId:bPessoaId,recurrence:'once',
-          budgetMonth:toM,budgetYear:toY,
-          delayed:true,
-          delayedFrom:existing.delayedFrom||{month:fromM,year:fromY},
-          delayedTo:{month:toM,year:toY}});
-      }else if(recurrence==='always'){
-        // fixo: skip no mes de origem + criar once no destino
-        const delSkips=[...(existing.delayedSkipMonths||[]),{month:fromM,year:fromY}];
-        await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems:finalSubitems,
-          pessoaId:bPessoaId,recurrence:'always',delayedSkipMonths:delSkips});
-        await budgetAdd({name,value:val,rawExpr:bRawExpr,type,
-          dueDay:existing.dueDay,dueMonthOffset:existing.dueMonthOffset,
-          obs,subitems:finalSubitems,
-          pessoaId:bPessoaId,recurrence:'once',
-          budgetMonth:toM,budgetYear:toY,
-          delayed:true,delayedFrom:{month:fromM,year:fromY},delayedTo:{month:toM,year:toY},
-          delayedFromId:existing.id,createdAt:Date.now()});
-      }else{
-        // once/parcelado: mover budgetMonth para destino
-        await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,
-          dueDay:existing.dueDay,dueMonthOffset:existing.dueMonthOffset,
-          obs,subitems:finalSubitems,
-          pessoaId:bPessoaId,recurrence:'once',installmentCur,installmentTotal,
-          budgetMonth:toM,budgetYear:toY,
-          delayed:true,delayedFrom:{month:fromM,year:fromY},delayedTo:{month:toM,year:toY}});
+
+  try{
+    const subitems=getRawSubitems();
+    const name=document.getElementById('b-name')?.value.trim();
+    const val=getBudgetVal();
+    const type=document.getElementById('b-type')?.value;
+    const dueDay=parseInt(document.getElementById('b-day')?.value)||null;
+    const dueMonthOffset=parseInt(document.getElementById('b-due-offset')?.value)||0;
+    const obs=document.getElementById('b-obs')?.value.trim()||'';
+    const bPessoaId=getSelectedPessoa('b-pessoa-chips');
+    const bRawExpr=getBudgetRawExpr();
+    const{recurrence,installmentCur,installmentTotal}=getBudgetRecurrence();
+    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
+    const all=await budgetAll();
+    const existing=all.find(x=>x.id===id);
+    if(!existing)return;
+    if(recurrence==='installments'&&installmentTotal>1){
+      // If converting from once/always to installments, ask for confirmation
+      if(existing.recurrence!=='installments'){
+        closeModal();
+        showConfirm('Transformar em parcelas?','O item atual será removido e '+(installmentTotal-installmentCur+1)+' parcelas serão criadas a partir deste mês.',[
+          {label:'Confirmar',cls:'btn-primary',action:async()=>{
+            await budgetDel(id);
+            const newBGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+            for(let i=installmentCur-1;i<installmentTotal;i++){
+              const label=name.replace(/\s+\d+\/\d+$/,'').trim()+' '+(i+1)+'/'+installmentTotal;
+              const mOffset=i-(installmentCur-1);
+              const rawM=curMonth+mOffset;
+              await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+                pessoaId:bPessoaId,recurrence:'once',groupId:newBGroupId,
+                installmentCur:i+1,installmentTotal,
+                budgetMonth:(rawM%12+12)%12,
+                budgetYear:curYear+Math.floor(rawM/12),
+                createdAt:Date.now()});
+            }
+            toast(installmentTotal-installmentCur+1+' parcelas criadas!','var(--teal)');
+            renderBudget();
+          }},
+          {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+        ]);
+        return;
       }
-      toast('Item movido para '+MONTHS[toM].slice(0,3)+'/'+toY,'var(--amber)');
+      // Already installments - rebuild series (existing logic)
+      await budgetDel(id);
+      const newBGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      for(let i=installmentCur-1;i<installmentTotal;i++){
+        const label=name.replace(/\s+\d+\/\d+$/,'').trim()+' '+(i+1)+'/'+installmentTotal;
+        const mOffset=i-(installmentCur-1);
+        const rawM=curMonth+mOffset;
+        await budgetAdd({name:label,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+          pessoaId:bPessoaId,recurrence:'once',groupId:newBGroupId,
+          installmentCur:i+1,installmentTotal,
+          budgetMonth:(rawM%12+12)%12,
+          budgetYear:curYear+Math.floor(rawM/12),
+          createdAt:Date.now()});
+      }
+      toast(installmentTotal-installmentCur+1+' parcelas criadas!','var(--teal)');
+      closeModal();renderBudget();
+    }else if(existing.groupId&&recurrence!=='installments'){
+      // Part of a series - offer series edit
+      const allBuds=await budgetAll();
+      // future = same group, budgetMonth >= this item's budgetMonth
+      const thisTotal=existing.budgetYear*12+existing.budgetMonth;
+      const future=allBuds.filter(b=>b.groupId===existing.groupId&&
+        b.id!==existing.id&&(b.budgetYear*12+b.budgetMonth)>thisTotal);
+      if(future.length>0){
+        closeModal();
+        showConfirm('Editar parcela do orçamento','Esta parcela faz parte de uma série.',[
+          {label:'Apenas esta',cls:'btn-ghost',action:async()=>{
+            const dEd=getBudgetDelayed();
+            if(dEd&&dEd.to){
+              // mover para outro periodo
+              const toM=dEd.to.month,toY=dEd.to.year;
+              const fromM=existing.budgetMonth!=null?existing.budgetMonth:curMonth;
+              const fromY=existing.budgetYear!=null?existing.budgetYear:curYear;
+              await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,
+                dueDay:existing.dueDay,dueMonthOffset:existing.dueMonthOffset,
+                obs,subitems,pessoaId:bPessoaId,recurrence:'once',
+                installmentCur:existing.installmentCur,installmentTotal:existing.installmentTotal,
+                budgetMonth:toM,budgetYear:toY,
+                delayed:true,delayedFrom:{month:fromM,year:fromY},delayedTo:{month:toM,year:toY}});
+              toast('Parcela movida para '+MONTHS[toM].slice(0,3)+'/'+toY,'var(--amber)');
+            }else if(existing.delayed&&!dEd){
+              // desmarcar delayed: voltar ao periodo original
+              const restM=existing.delayedFrom?existing.delayedFrom.month:existing.budgetMonth;
+              const restY=existing.delayedFrom?existing.delayedFrom.year:existing.budgetYear;
+              await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+                pessoaId:bPessoaId,recurrence:'once',
+                installmentCur:existing.installmentCur,installmentTotal:existing.installmentTotal,
+                budgetMonth:restM,budgetYear:restY,
+                delayed:false,delayedFrom:null,delayedTo:null});
+              toast('Parcela restaurada!','var(--teal)');
+            }else{
+              await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+                pessoaId:bPessoaId,recurrence:'once',
+                budgetMonth:existing.budgetMonth,budgetYear:existing.budgetYear,
+                delayed:false,delayedFrom:null,delayedTo:null});
+              toast('Parcela atualizada!','var(--teal)');
+            }
+            closeModal();renderBudget();
+          }},
+          {label:'Esta e seguintes',cls:'btn-primary',action:async()=>{
+            await budgetDel(existing.id);
+            for(const b of future) await budgetDel(b.id);
+            const newG=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+            const remaining=future.length+1;
+            const startInst=existing.installmentCur||1;
+            const totalInst=existing.installmentTotal||remaining;
+            const baseName2=(name).replace(/\s+\d+\/\d+$/,'').trim();
+            let rawM2=(existing.budgetYear*12+existing.budgetMonth)-(curYear*12+curMonth);
+            const baseYM=existing.budgetYear*12+existing.budgetMonth;
+            for(let i=0;i<remaining;i++){
+              const ym2=baseYM+i;
+              const bm=(ym2%12+12)%12;
+              const by=Math.floor(ym2/12);
+              const label2=baseName2+' '+(startInst+i)+'/'+totalInst;
+              await budgetAdd({name:label2,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+                pessoaId:bPessoaId,recurrence:'once',groupId:newG,
+                installmentCur:startInst+i,installmentTotal:totalInst,
+                budgetMonth:bm,budgetYear:by,createdAt:Date.now()});
+            }
+            toast('Série atualizada!','var(--teal)');renderBudget();
+          }},
+          {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+        ]);
+        return;
+      }
+      await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems,
+        pessoaId:bPessoaId,recurrence:'once',
+        budgetMonth:existing.budgetMonth,budgetYear:existing.budgetYear});
+      toast('Item atualizado!','var(--teal)');
+      closeModal();renderBudget();
     }else{
-      // desmarcar: restaurar periodo original
-      const modal2=document.getElementById('modal-content');
-      const origM=modal2?.dataset.origMonth!=null?parseInt(modal2.dataset.origMonth):null;
-      const origY=modal2?.dataset.origYear!=null?parseInt(modal2.dataset.origYear):null;
-      const restoreM=origM!=null?origM:(existing.delayedFrom?existing.delayedFrom.month:existing.budgetMonth);
-      const restoreY=origY!=null?origY:(existing.delayedFrom?existing.delayedFrom.year:existing.budgetYear);
-      // item fixo: restaurar recurrence always e remover skips
-      // item once/parcelado: mover de volta ao periodo original
-      const wasAlways=existing.delayedFromId!=null; // era fixo (tinha clone criado)
-      if(wasAlways){
-        // restaurar original (always) sem o skip do mes que foi atrasado
-        const allBuds2=await budgetAll();
-        const origItem=allBuds2.find(b=>b.id===existing.delayedFromId);
-        if(origItem){
-          const fromM=existing.delayedFrom?.month;
-          const skipsClean=(origItem.delayedSkipMonths||[]).filter(s=>!(s.month===fromM&&s.year===existing.delayedFrom?.year));
-          await budgetPut({...origItem,delayedSkipMonths:skipsClean.length?skipsClean:null});
-        }
-        // deletar este clone atrasado
-        await budgetDel(existing.id);
-      }else{
-        await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems:finalSubitems,
-          pessoaId:bPessoaId,recurrence:recurrence==='always'?'always':'once',installmentCur,installmentTotal,
-          budgetMonth:restoreM!=null?restoreM:null,budgetYear:restoreY!=null?restoreY:null,
-          delayed:false,delayedFrom:null,delayedTo:null,delayedSkipMonths:null});
+      // Para itens com subRepeatStart: mesclar subitems do DOM com os originais do banco
+      // Os subitems que ja acabaram ficam no banco mas nao aparecem no DOM
+      let finalSubitems=subitems;
+      if(existing.subRepeatStart&&existing.subitems?.length){
+        const srs=existing.subRepeatStart;
+        const elap=(curYear*12+curMonth)-(srs.year*12+srs.month);
+        // subitems do banco que ja acabaram (nao estao no DOM)
+        const ended=existing.subitems.filter(s=>(s.repeat||0)>0&&elap>=(s.repeat||0));
+        // subitems do DOM (ativos ou marcados com skip/repeatCap)
+        finalSubitems=[...subitems,...ended];
       }
-      toast('Item restaurado!','var(--teal)');
+      const delayedEdit=getBudgetDelayed();
+      if(delayedEdit){
+        // from = onde o item esta agora (budgetMonth para once, curMonth para always)
+        const fromM=existing.budgetMonth!=null?existing.budgetMonth:curMonth;
+        const fromY=existing.budgetYear!=null?existing.budgetYear:curYear;
+        // se nao tem destino (novo item ou toggle sem select): manter no periodo atual
+        const toM=delayedEdit.to?delayedEdit.to.month:fromM;
+        const toY=delayedEdit.to?delayedEdit.to.year:fromY;
+        if(existing.delayed){
+          // ja atrasado: apenas mover para novo destino, preservar delayedFrom original
+          await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,
+            dueDay:existing.dueDay,dueMonthOffset:existing.dueMonthOffset,
+            obs,subitems:finalSubitems,
+            pessoaId:bPessoaId,recurrence:'once',
+            budgetMonth:toM,budgetYear:toY,
+            delayed:true,
+            delayedFrom:existing.delayedFrom||{month:fromM,year:fromY},
+            delayedTo:{month:toM,year:toY}});
+        }else if(recurrence==='always'){
+          // fixo: skip no mes de origem + criar once no destino
+          const delSkips=[...(existing.delayedSkipMonths||[]),{month:fromM,year:fromY}];
+          await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems:finalSubitems,
+            pessoaId:bPessoaId,recurrence:'always',delayedSkipMonths:delSkips});
+          await budgetAdd({name,value:val,rawExpr:bRawExpr,type,
+            dueDay:existing.dueDay,dueMonthOffset:existing.dueMonthOffset,
+            obs,subitems:finalSubitems,
+            pessoaId:bPessoaId,recurrence:'once',
+            budgetMonth:toM,budgetYear:toY,
+            delayed:true,delayedFrom:{month:fromM,year:fromY},delayedTo:{month:toM,year:toY},
+            delayedFromId:existing.id,createdAt:Date.now()});
+        }else{
+          // once/parcelado: mover budgetMonth para destino
+          await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,
+            dueDay:existing.dueDay,dueMonthOffset:existing.dueMonthOffset,
+            obs,subitems:finalSubitems,
+            pessoaId:bPessoaId,recurrence:'once',installmentCur,installmentTotal,
+            budgetMonth:toM,budgetYear:toY,
+            delayed:true,delayedFrom:{month:fromM,year:fromY},delayedTo:{month:toM,year:toY}});
+        }
+        toast('Item movido para '+MONTHS[toM].slice(0,3)+'/'+toY,'var(--amber)');
+      }else{
+        // desmarcar: restaurar periodo original
+        const modal2=document.getElementById('modal-content');
+        const origM=modal2?.dataset.origMonth!=null?parseInt(modal2.dataset.origMonth):null;
+        const origY=modal2?.dataset.origYear!=null?parseInt(modal2.dataset.origYear):null;
+        const restoreM=origM!=null?origM:(existing.delayedFrom?existing.delayedFrom.month:existing.budgetMonth);
+        const restoreY=origY!=null?origY:(existing.delayedFrom?existing.delayedFrom.year:existing.budgetYear);
+        // item fixo: restaurar recurrence always e remover skips
+        // item once/parcelado: mover de volta ao periodo original
+        const wasAlways=existing.delayedFromId!=null; // era fixo (tinha clone criado)
+        if(wasAlways){
+          // restaurar original (always) sem o skip do mes que foi atrasado
+          const allBuds2=await budgetAll();
+          const origItem=allBuds2.find(b=>b.id===existing.delayedFromId);
+          if(origItem){
+            const fromM=existing.delayedFrom?.month;
+            const skipsClean=(origItem.delayedSkipMonths||[]).filter(s=>!(s.month===fromM&&s.year===existing.delayedFrom?.year));
+            await budgetPut({...origItem,delayedSkipMonths:skipsClean.length?skipsClean:null});
+          }
+          // deletar este clone atrasado
+          await budgetDel(existing.id);
+        }else{
+          await budgetPut({...existing,name,value:val,rawExpr:bRawExpr,type,dueDay,dueMonthOffset,obs,subitems:finalSubitems,
+            pessoaId:bPessoaId,recurrence:recurrence==='always'?'always':'once',installmentCur,installmentTotal,
+            budgetMonth:restoreM!=null?restoreM:null,budgetYear:restoreY!=null?restoreY:null,
+            delayed:false,delayedFrom:null,delayedTo:null,delayedSkipMonths:null});
+        }
+        toast('Item restaurado!','var(--teal)');
+      }
+      closeModal();renderBudget();
     }
-    closeModal();renderBudget();
+
+  }catch(e){
+    console.error('[saveBudgetEdit]',e);
+    toast('Erro ao salvar item','var(--red)');
   }
 }
 
 
 
 async function toggleBudgetDone(budgetId){
-  // Handle cartao virtual items (string ids like 'cartao_3')
-  if(typeof budgetId==='string'&&budgetId.startsWith('cartao_')){
-    const cartaoId=parseInt(budgetId.replace('cartao_',''));
-    const key=doneKey(budgetId,curYear,curMonth);
+
+  try{
+    // Handle cartao virtual items (string ids like 'cartao_3')
+    if(typeof budgetId==='string'&&budgetId.startsWith('cartao_')){
+      const cartaoId=parseInt(budgetId.replace('cartao_',''));
+      const key=doneKey(budgetId,curYear,curMonth);
+      const existing=await doneGet(key);
+      if(existing){
+        if(existing.txId)await dbDel(existing.txId);
+        await doneDel(key);
+        toast('Marcação desfeita','var(--amber)');
+      }else{
+        const cartoes=await cartoesAll();
+        const cartao=cartoes.find(c=>c.id===cartaoId);
+        if(!cartao)return;
+        const gastosFatura=await getCartaoFaturaGastos(cartaoId,curMonth,curYear);
+        const allRec2=await recorrentesAll();
+        const recFatura=allRec2.filter(r=>r.cartaoId===cartaoId);
+        const total=(gastosFatura.reduce((s,g)=>s+g.value,0))+(recFatura.reduce((s,r)=>s+r.value,0));
+        const vencDate=getFaturaVencimento(curYear,curMonth,cartao);
+        const obsLines=[...gastosFatura,...recFatura].map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
+        const txSubitems=[...gastosFatura,...recFatura].map(g=>({name:g.name,value:g.value}));
+        const txId=await dbAdd({
+          name:'Fatura '+cartao.name,value:total,type:'credit',
+          month:curMonth,year:curYear,ym:ym(curYear,curMonth),
+          date:vencDate,obs:'',subitems:txSubitems,
+          pessoaId:cartao.pessoaId||null,
+          fromBudget:true,fromCartao:cartaoId,createdAt:Date.now()
+        });
+        await donePut({key,budgetId,txId,doneAt:Date.now()});
+        toast('Fatura lançada! ✅','var(--green)');
+      }
+      renderBudget();
+      return;
+    }
+    // Normal manual budget items
+    const id=typeof budgetId==='string'?parseInt(budgetId):budgetId;
+    const key=doneKey(id,curYear,curMonth);
     const existing=await doneGet(key);
     if(existing){
       if(existing.txId)await dbDel(existing.txId);
       await doneDel(key);
       toast('Marcação desfeita','var(--amber)');
     }else{
-      const cartoes=await cartoesAll();
-      const cartao=cartoes.find(c=>c.id===cartaoId);
-      if(!cartao)return;
-      const gastosFatura=await getCartaoFaturaGastos(cartaoId,curMonth,curYear);
-      const allRec2=await recorrentesAll();
-      const recFatura=allRec2.filter(r=>r.cartaoId===cartaoId);
-      const total=(gastosFatura.reduce((s,g)=>s+g.value,0))+(recFatura.reduce((s,r)=>s+r.value,0));
-      const vencDate=getFaturaVencimento(curYear,curMonth,cartao);
-      const obsLines=[...gastosFatura,...recFatura].map(g=>g.name+(g.value?' ('+fmt(g.value)+')':'')).join(', ');
-      const txSubitems=[...gastosFatura,...recFatura].map(g=>({name:g.name,value:g.value}));
+      const buds=await budgetAll();
+      const item=buds.find(x=>x.id===id);
+      if(!item)return;
+      const day=item.dueDay||1;
+      const offset=item.dueMonthOffset||0;
+      const rawDueMonth=curMonth+offset;
+      const dueYear=curYear+Math.floor(rawDueMonth/12);
+      const dueMonth=(rawDueMonth%12+12)%12;
+      const dateStr=dueYear+'-'+String(dueMonth+1).padStart(2,'0')+'-'+String(Math.min(day,28)).padStart(2,'0');
+      // calcular subitems e valor ativos para este mes
+      let txSubs=item.subitems||[];
+      let txVal=item.value;
+      if(item.subRepeatStart&&txSubs.length){
+        txSubs=getActiveSubitems(txSubs,item.subRepeatStart.month,item.subRepeatStart.year,curMonth,curYear);
+        if(txSubs.length)txVal=txSubs.reduce((t,s)=>t+s.value,0);
+      }
       const txId=await dbAdd({
-        name:'Fatura '+cartao.name,value:total,type:'credit',
+        name:item.name,value:txVal,rawExpr:item.rawExpr||null,
+        subitems:txSubs,type:item.type,
         month:curMonth,year:curYear,ym:ym(curYear,curMonth),
-        date:vencDate,obs:'',subitems:txSubitems,
-        pessoaId:cartao.pessoaId||null,
-        fromBudget:true,fromCartao:cartaoId,createdAt:Date.now()
+        date:dateStr,obs:item.obs||'',pessoaId:item.pessoaId||null,
+        fromBudget:true,createdAt:Date.now()
       });
-      await donePut({key,budgetId,txId,doneAt:Date.now()});
-      toast('Fatura lançada! ✅','var(--green)');
+      await donePut({key,budgetId:id,txId,doneAt:Date.now()});
+      toast('Lançamento registrado! ✅','var(--green)');
     }
     renderBudget();
-    return;
+    const p=document.querySelector('.page.active');
+    if(p&&(p.id==='page-dash'||p.id==='page-tx'))renderAll();
+
+  }catch(e){
+    console.error('[toggleBudgetDone]',e);
+    toast('Erro ao marcar item','var(--red)');
   }
-  // Normal manual budget items
-  const id=typeof budgetId==='string'?parseInt(budgetId):budgetId;
-  const key=doneKey(id,curYear,curMonth);
-  const existing=await doneGet(key);
-  if(existing){
-    if(existing.txId)await dbDel(existing.txId);
-    await doneDel(key);
-    toast('Marcação desfeita','var(--amber)');
-  }else{
-    const buds=await budgetAll();
-    const item=buds.find(x=>x.id===id);
-    if(!item)return;
-    const day=item.dueDay||1;
-    const offset=item.dueMonthOffset||0;
-    const rawDueMonth=curMonth+offset;
-    const dueYear=curYear+Math.floor(rawDueMonth/12);
-    const dueMonth=(rawDueMonth%12+12)%12;
-    const dateStr=dueYear+'-'+String(dueMonth+1).padStart(2,'0')+'-'+String(Math.min(day,28)).padStart(2,'0');
-    // calcular subitems e valor ativos para este mes
-    let txSubs=item.subitems||[];
-    let txVal=item.value;
-    if(item.subRepeatStart&&txSubs.length){
-      txSubs=getActiveSubitems(txSubs,item.subRepeatStart.month,item.subRepeatStart.year,curMonth,curYear);
-      if(txSubs.length)txVal=txSubs.reduce((t,s)=>t+s.value,0);
-    }
-    const txId=await dbAdd({
-      name:item.name,value:txVal,rawExpr:item.rawExpr||null,
-      subitems:txSubs,type:item.type,
-      month:curMonth,year:curYear,ym:ym(curYear,curMonth),
-      date:dateStr,obs:item.obs||'',pessoaId:item.pessoaId||null,
-      fromBudget:true,createdAt:Date.now()
-    });
-    await donePut({key,budgetId:id,txId,doneAt:Date.now()});
-    toast('Lançamento registrado! ✅','var(--green)');
-  }
-  renderBudget();
-  const p=document.querySelector('.page.active');
-  if(p&&(p.id==='page-dash'||p.id==='page-tx'))renderAll();
 }
 
 async function deleteBudgetItem(id){
-  const allBuds=await budgetAll();
-  const item=allBuds.find(b=>b.id===id);
-  // se item delayed com clone (delayedFromId), limpar skip do original ao deletar
-  if(item&&item.delayed&&item.delayedFromId){
-    const origItem=allBuds.find(b=>b.id===item.delayedFromId);
-    if(origItem&&origItem.delayedSkipMonths?.length){
-      const fromM=item.delayedFrom?.month,fromY=item.delayedFrom?.year;
-      const skipsClean=origItem.delayedSkipMonths.filter(s=>!(s.month===fromM&&s.year===fromY));
-      await budgetPut({...origItem,delayedSkipMonths:skipsClean.length?skipsClean:null});
+
+  try{
+    const allBuds=await budgetAll();
+    const item=allBuds.find(b=>b.id===id);
+    // se item delayed com clone (delayedFromId), limpar skip do original ao deletar
+    if(item&&item.delayed&&item.delayedFromId){
+      const origItem=allBuds.find(b=>b.id===item.delayedFromId);
+      if(origItem&&origItem.delayedSkipMonths?.length){
+        const fromM=item.delayedFrom?.month,fromY=item.delayedFrom?.year;
+        const skipsClean=origItem.delayedSkipMonths.filter(s=>!(s.month===fromM&&s.year===fromY));
+        await budgetPut({...origItem,delayedSkipMonths:skipsClean.length?skipsClean:null});
+      }
     }
-  }
-  async function delOne(bid){
-    await budgetDel(bid);
-    await new Promise(res=>{
-      const t=db.transaction('budgetDone','readwrite');
-      const store=t.objectStore('budgetDone');
-      store.getAll().onsuccess=e=>{
-        (e.target.result||[]).filter(r=>r.budgetId===bid).forEach(r=>store.delete(r.key));
-        res();
-      };
-    });
-  }
-  const isSeries=item&&(item.groupId||(item.installmentTotal>1&&item.recurrence==='once'));
-  if(isSeries){
-    const thisTotal=item.budgetYear*12+item.budgetMonth;
-    const allInGroup=item.groupId
-      ?allBuds.filter(b=>b.groupId===item.groupId&&b.id!==id)
-      :allBuds.filter(b=>b.id!==id&&b.installmentTotal===item.installmentTotal&&b.recurrence==='once'&&b.pessoaId===item.pessoaId&&b.name.replace(/\s+\d+\/\d+$/,'')===item.name.replace(/\s+\d+\/\d+$/,''));
-    const future=allInGroup.filter(b=>(b.budgetYear*12+b.budgetMonth)>thisTotal);
-    const instLabel=item.installmentCur&&item.installmentTotal?' ('+item.installmentCur+'/'+item.installmentTotal+')':'';
-    const futureCount=future.length+1;
-    const totalCount=allInGroup.length+1;
-    showConfirm('Remover parcela do orçamento','Esta parcela'+instLabel+' faz parte de uma série de '+totalCount+'.',[
-      {label:'Só esta parcela',cls:'btn-ghost',action:async()=>{
-        await delOne(id);toast('Parcela removida','var(--red)');renderBudget();
-      }},
-      ...(future.length>0?[{label:'Esta e as seguintes ('+futureCount+')',cls:'btn-ghost',action:async()=>{
-        await delOne(id);
-        for(const b of future)await delOne(b.id);
-        toast(futureCount+' parcelas removidas','var(--red)');renderBudget();
-      }}]:[]),
-      {label:'Todas as parcelas ('+totalCount+')',cls:'btn-danger',action:async()=>{
-        await delOne(id);
-        for(const b of allInGroup)await delOne(b.id);
-        toast('Série removida ('+totalCount+' parcelas)','var(--red)');renderBudget();
+    async function delOne(bid){
+      await budgetDel(bid);
+      await new Promise(res=>{
+        const t=db.transaction('budgetDone','readwrite');
+        const store=t.objectStore('budgetDone');
+        store.getAll().onsuccess=e=>{
+          (e.target.result||[]).filter(r=>r.budgetId===bid).forEach(r=>store.delete(r.key));
+          res();
+        };
+      });
+    }
+    const isSeries=item&&(item.groupId||(item.installmentTotal>1&&item.recurrence==='once'));
+    if(isSeries){
+      const thisTotal=item.budgetYear*12+item.budgetMonth;
+      const allInGroup=item.groupId
+        ?allBuds.filter(b=>b.groupId===item.groupId&&b.id!==id)
+        :allBuds.filter(b=>b.id!==id&&b.installmentTotal===item.installmentTotal&&b.recurrence==='once'&&b.pessoaId===item.pessoaId&&b.name.replace(/\s+\d+\/\d+$/,'')===item.name.replace(/\s+\d+\/\d+$/,''));
+      const future=allInGroup.filter(b=>(b.budgetYear*12+b.budgetMonth)>thisTotal);
+      const instLabel=item.installmentCur&&item.installmentTotal?' ('+item.installmentCur+'/'+item.installmentTotal+')':'';
+      const futureCount=future.length+1;
+      const totalCount=allInGroup.length+1;
+      showConfirm('Remover parcela do orçamento','Esta parcela'+instLabel+' faz parte de uma série de '+totalCount+'.',[
+        {label:'Só esta parcela',cls:'btn-ghost',action:async()=>{
+          await delOne(id);toast('Parcela removida','var(--red)');renderBudget();
+        }},
+        ...(future.length>0?[{label:'Esta e as seguintes ('+futureCount+')',cls:'btn-ghost',action:async()=>{
+          await delOne(id);
+          for(const b of future)await delOne(b.id);
+          toast(futureCount+' parcelas removidas','var(--red)');renderBudget();
+        }}]:[]),
+        {label:'Todas as parcelas ('+totalCount+')',cls:'btn-danger',action:async()=>{
+          await delOne(id);
+          for(const b of allInGroup)await delOne(b.id);
+          toast('Série removida ('+totalCount+' parcelas)','var(--red)');renderBudget();
+        }},
+        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+      ]);
+      return;
+    }
+    showConfirm('Remover item do orçamento','Os lançamentos já realizados serão mantidos.',[
+      {label:'Remover',cls:'btn-danger',action:async()=>{
+        await delOne(id);toast('Item removido','var(--red)');renderBudget();
       }},
       {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
     ]);
-    return;
+
+  }catch(e){
+    console.error('[deleteBudgetItem]',e);
+    toast('Erro ao remover item','var(--red)');
   }
-  showConfirm('Remover item do orçamento','Os lançamentos já realizados serão mantidos.',[
-    {label:'Remover',cls:'btn-danger',action:async()=>{
-      await delOne(id);toast('Item removido','var(--red)');renderBudget();
-    }},
-    {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-  ]);
 }
 
 async function renderBudget(){

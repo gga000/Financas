@@ -1,20 +1,27 @@
 async function exportData(){
-  const all=await dbAll();
-  const buds=await budgetAll();
-  if(!all.length&&!buds.length){toast('Nenhum dado para exportar','var(--amber)');return}
-  const pessoas=await pessoasAll();
-  const cartoes=await cartoesAll();
-  const gastos=await gastosAll();
-  const budgetDoneAll=await new Promise(res=>{const t=db.transaction('budgetDone','readonly');t.objectStore('budgetDone').getAll().onsuccess=e=>res(e.target.result||[])});
-  const recorrentes=await recorrentesAll();
-  const json=JSON.stringify({version:6,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,cartoes,gastos,recorrentes,budgetDone:budgetDoneAll},null,2);
-  const blob=new Blob([json],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  const d=new Date();
-  a.href=url;a.download=`financas_backup_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
-  a.click();URL.revokeObjectURL(url);
-  toast(`${all.length} lançamentos exportados!`,'var(--green)');
+
+  try{
+    const all=await dbAll();
+    const buds=await budgetAll();
+    if(!all.length&&!buds.length){toast('Nenhum dado para exportar','var(--amber)');return}
+    const pessoas=await pessoasAll();
+    const cartoes=await cartoesAll();
+    const gastos=await gastosAll();
+    const budgetDoneAll=await new Promise(res=>{const t=db.transaction('budgetDone','readonly');t.objectStore('budgetDone').getAll().onsuccess=e=>res(e.target.result||[])});
+    const recorrentes=await recorrentesAll();
+    const json=JSON.stringify({version:6,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,cartoes,gastos,recorrentes,budgetDone:budgetDoneAll},null,2);
+    const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const d=new Date();
+    a.href=url;a.download=`financas_backup_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+    a.click();URL.revokeObjectURL(url);
+    toast(`${all.length} lançamentos exportados!`,'var(--green)');
+
+  }catch(e){
+    console.error('[exportData]',e);
+    toast('Erro ao exportar dados','var(--red)');
+  }
 }
 function importData(e){
   const file=e.target.files[0];if(!file)return;
@@ -121,22 +128,29 @@ function importData(e){
   reader.readAsText(file);e.target.value='';
 }
 async function clearAll(){
-  if(!confirm('Apagar TODOS os dados? (Lançamentos, orçamento e pessoas)\nEsta ação não pode ser desfeita.'))return;
-  await dbClear();
-  // clear budget, budgetDone
-  await new Promise(res=>{const t=db.transaction('budget','readwrite');t.objectStore('budget').clear().onsuccess=()=>res()});
-  await new Promise(res=>{const t=db.transaction('budgetDone','readwrite');t.objectStore('budgetDone').clear().onsuccess=()=>res()});
-  await new Promise(res=>{const t=db.transaction('pessoas','readwrite');t.objectStore('pessoas').clear().onsuccess=()=>res()});
-  await new Promise(res=>{const t=db.transaction('cartoes','readwrite');t.objectStore('cartoes').clear().onsuccess=()=>res()});
-  await new Promise(res=>{const t=db.transaction('gastos','readwrite');t.objectStore('gastos').clear().onsuccess=()=>res()});
-  await new Promise(res=>{const t=db.transaction('recorrentes','readwrite');t.objectStore('recorrentes').clear().onsuccess=()=>res()});
-  pessoaFilter=null;
-  toast('Todos os dados apagados','var(--red)');
-  renderAll();
-  renderBudget();
-  renderCards();
-  renderPessoasConfig();
-  renderPersonFilterBars();
+
+  try{
+    if(!confirm('Apagar TODOS os dados? (Lançamentos, orçamento e pessoas)\nEsta ação não pode ser desfeita.'))return;
+    await dbClear();
+    // clear budget, budgetDone
+    await new Promise(res=>{const t=db.transaction('budget','readwrite');t.objectStore('budget').clear().onsuccess=()=>res()});
+    await new Promise(res=>{const t=db.transaction('budgetDone','readwrite');t.objectStore('budgetDone').clear().onsuccess=()=>res()});
+    await new Promise(res=>{const t=db.transaction('pessoas','readwrite');t.objectStore('pessoas').clear().onsuccess=()=>res()});
+    await new Promise(res=>{const t=db.transaction('cartoes','readwrite');t.objectStore('cartoes').clear().onsuccess=()=>res()});
+    await new Promise(res=>{const t=db.transaction('gastos','readwrite');t.objectStore('gastos').clear().onsuccess=()=>res()});
+    await new Promise(res=>{const t=db.transaction('recorrentes','readwrite');t.objectStore('recorrentes').clear().onsuccess=()=>res()});
+    pessoaFilter=null;
+    toast('Todos os dados apagados','var(--red)');
+    renderAll();
+    renderBudget();
+    renderCards();
+    renderPessoasConfig();
+    renderPersonFilterBars();
+
+  }catch(e){
+    console.error('[clearAll]',e);
+    toast('Erro ao limpar dados','var(--red)');
+  }
 }
 
 function renderCfg(){

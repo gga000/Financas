@@ -67,14 +67,21 @@ function updateMonthLabels(){
 }
 
 async function renderAll(){
-  updateMonthLabels();
-  const p=document.querySelector('.page.active');
-  if(!p)return;
-  if(p.id==='page-dash')renderDash();
-  else if(p.id==='page-tx')renderTx();
-  else if(p.id==='page-cards')renderCards();
-  else if(p.id==='page-proj')renderProj();
-  else if(p.id==='page-budget')renderBudget();
+
+  try{
+    updateMonthLabels();
+    const p=document.querySelector('.page.active');
+    if(!p)return;
+    if(p.id==='page-dash')renderDash();
+    else if(p.id==='page-tx')renderTx();
+    else if(p.id==='page-cards')renderCards();
+    else if(p.id==='page-proj')renderProj();
+    else if(p.id==='page-budget')renderBudget();
+
+  }catch(e){
+    console.error('[renderAll]',e);
+    toast('Erro ao renderizar','var(--red)');
+  }
 }
 
 async function init(){

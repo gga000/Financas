@@ -342,121 +342,142 @@ function getFormValues(){
 }
 
 async function saveEntry(){
-  const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId}=getFormValues();
-  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
-  const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-  if(type==='credit'){
-    const pnum=parseInt(document.getElementById('f-pnum').value)||1;
-    const ptotal=parseInt(document.getElementById('f-ptotal').value)||1;
-    if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return}
-    let m=month,y=year,d=date;
-    for(let i=pnum-1;i<ptotal;i++){
-      await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,createdAt:Date.now()});
-      if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
+
+  try{
+    const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId}=getFormValues();
+    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
+    const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    if(type==='credit'){
+      const pnum=parseInt(document.getElementById('f-pnum').value)||1;
+      const ptotal=parseInt(document.getElementById('f-ptotal').value)||1;
+      if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return}
+      let m=month,y=year,d=date;
+      for(let i=pnum-1;i<ptotal;i++){
+        await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,createdAt:Date.now()});
+        if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
+      }
+      toast(`${ptotal-pnum+1} parcela(s) salva(s)!`,'var(--purple)');
+    } else if(document.getElementById('f-recur')?.value==='monthly'){
+      const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
+      let m=month,y=year,d=date;
+      for(let i=0;i<count;i++){
+        await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,recurring:true,createdAt:Date.now()});
+        if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
+      }
+      toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
+    } else {
+      // item com subitems que tem repeat: salva 1 registro com subitems raw
+      const rawSubs=getRawSubitems();
+      const hasSubRepeat=rawSubs.some(s=>s.repeat>0);
+      if(hasSubRepeat){
+        await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,
+          subitems:rawSubs,pessoaId,
+          subRepeatStart:{month,year},
+          createdAt:Date.now()});
+        toast('Lançamento salvo!');
+      }else{
+        await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,subitems,pessoaId,createdAt:Date.now()});
+        toast('Lançamento salvo!');
+      }
     }
-    toast(`${ptotal-pnum+1} parcela(s) salva(s)!`,'var(--purple)');
-  } else if(document.getElementById('f-recur')?.value==='monthly'){
-    const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
-    let m=month,y=year,d=date;
-    for(let i=0;i<count;i++){
-      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,recurring:true,createdAt:Date.now()});
-      if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
-    }
-    toast(`Lançamento fixo — ${count} ${count===1?'mês':'meses'}!`,'var(--teal)');
-  } else {
-    // item com subitems que tem repeat: salva 1 registro com subitems raw
-    const rawSubs=getRawSubitems();
-    const hasSubRepeat=rawSubs.some(s=>s.repeat>0);
-    if(hasSubRepeat){
-      await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,
-        subitems:rawSubs,pessoaId,
-        subRepeatStart:{month,year},
-        createdAt:Date.now()});
-      toast('Lançamento salvo!');
-    }else{
-      await dbAdd({name,value:val,rawExpr,type,month,year,ym:ym(year,month),date,paidDate,obs,subitems,pessoaId,createdAt:Date.now()});
-      toast('Lançamento salvo!');
-    }
+    closeModal();renderAll();
+
+  }catch(e){
+    console.error('[saveEntry]',e);
+    toast('Erro ao salvar lançamento','var(--red)');
   }
-  closeModal();renderAll();
 }
 
 async function updateEntry(id){
-  const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId}=getFormValues();
-  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
-  const all=await dbAll();
-  const existing=all.find(x=>x.id===id);
-  if(!existing)return;
 
-  const recurVal=document.getElementById('f-recur')?.value;
-  const isNewRecur=recurVal==='monthly';
-  const hasGroup=!!existing.groupId;
+  try{
+    const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId}=getFormValues();
+    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
+    const all=await dbAll();
+    const existing=all.find(x=>x.id===id);
+    if(!existing)return;
 
-  if(isNewRecur){
-    const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
-    if(hasGroup){
-      const sameGroup=all.filter(x=>x.groupId===existing.groupId&&ym(x.year,x.month)>=ym(existing.year,existing.month));
-      for(const x of sameGroup)await dbDel(x.id);
-    } else {
-      await dbDel(id);
-    }
-    const newGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    let m=month,y=year,d=date;
-    for(let i=0;i<count;i++){
-      await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId:newGroupId,recurring:true,createdAt:Date.now()});
-      if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
-    }
-    toast(`Série de ${count} meses criada!`,'var(--teal)');
-    closeModal();renderAll();
-    return;
-  }
+    const recurVal=document.getElementById('f-recur')?.value;
+    const isNewRecur=recurVal==='monthly';
+    const hasGroup=!!existing.groupId;
 
-  if(hasGroup){
-    const futureInGroup=all.filter(x=>x.groupId===existing.groupId&&ym(x.year,x.month)>ym(existing.year,existing.month));
-    if(futureInGroup.length>0){
-      closeModal();
-      showConfirm('Editar lançamento','Este lançamento faz parte de uma série. O que deseja atualizar?',[
-        {label:'Apenas este período',cls:'btn-ghost',action:async()=>{await dbPut({...existing,name,value:val,rawExpr,type,date,paidDate,month,year,ym:ym(year,month),obs,subitems,pessoaId});toast('Lançamento atualizado!','var(--green)');renderAll()}},
-        {label:'Este e todos os seguintes',cls:'btn-primary',action:async()=>{
-          const toUpdate=[existing,...futureInGroup].sort((a,b)=>ym(a.year,a.month)-ym(b.year,b.month));
-          let m=month,y=year,d=date;
-          for(const x of toUpdate){
-            await dbPut({...x,name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId});
-            if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
-          }
-          toast('Série atualizada!','var(--green)');renderAll();
-        }},
-        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-      ]);
+    if(isNewRecur){
+      const countRaw=document.getElementById('f-recur-count')?.value||'12';const count=Math.max(1,parseInt(countRaw.trim())||12);
+      if(hasGroup){
+        const sameGroup=all.filter(x=>x.groupId===existing.groupId&&ym(x.year,x.month)>=ym(existing.year,existing.month));
+        for(const x of sameGroup)await dbDel(x.id);
+      } else {
+        await dbDel(id);
+      }
+      const newGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      let m=month,y=year,d=date;
+      for(let i=0;i<count;i++){
+        await dbAdd({name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId:newGroupId,recurring:true,createdAt:Date.now()});
+        if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
+      }
+      toast(`Série de ${count} meses criada!`,'var(--teal)');
+      closeModal();renderAll();
       return;
     }
+
+    if(hasGroup){
+      const futureInGroup=all.filter(x=>x.groupId===existing.groupId&&ym(x.year,x.month)>ym(existing.year,existing.month));
+      if(futureInGroup.length>0){
+        closeModal();
+        showConfirm('Editar lançamento','Este lançamento faz parte de uma série. O que deseja atualizar?',[
+          {label:'Apenas este período',cls:'btn-ghost',action:async()=>{await dbPut({...existing,name,value:val,rawExpr,type,date,paidDate,month,year,ym:ym(year,month),obs,subitems,pessoaId});toast('Lançamento atualizado!','var(--green)');renderAll()}},
+          {label:'Este e todos os seguintes',cls:'btn-primary',action:async()=>{
+            const toUpdate=[existing,...futureInGroup].sort((a,b)=>ym(a.year,a.month)-ym(b.year,b.month));
+            let m=month,y=year,d=date;
+            for(const x of toUpdate){
+              await dbPut({...x,name,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId});
+              if(d){const nd=addMonths(d,1);if(nd)d=nd;}m++;if(m>11){m=0;y++}
+            }
+            toast('Série atualizada!','var(--green)');renderAll();
+          }},
+          {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+        ]);
+        return;
+      }
+    }
+    await dbPut({...existing,name,value:val,rawExpr,type,date,paidDate,month,year,ym:ym(year,month),obs,subitems,pessoaId});
+    toast('Lançamento atualizado!','var(--green)');
+    closeModal();renderAll();
+
+  }catch(e){
+    console.error('[updateEntry]',e);
+    toast('Erro ao salvar lançamento','var(--red)');
   }
-  await dbPut({...existing,name,value:val,rawExpr,type,date,paidDate,month,year,ym:ym(year,month),obs,subitems,pessoaId});
-  toast('Lançamento atualizado!','var(--green)');
-  closeModal();renderAll();
 }
 
 async function deleteTx(id){
-  const all=await dbAll();
-  const item=all.find(x=>x.id===id);
-  if(!item){await dbDel(id);renderAll();return}
-  if(item.groupId){
-    const future=all.filter(x=>x.groupId===item.groupId&&ym(x.year,x.month)>ym(item.year,item.month));
-    if(future.length>0){
-      showConfirm('Remover lançamento','Este lançamento faz parte de uma série.',[
-        {label:'Remover só este',cls:'btn-ghost',action:async()=>{await dbDel(id);toast('Removido','var(--red)');renderAll()}},
-        {label:`Remover este + ${future.length} seguinte(s)`,cls:'btn-danger',action:async()=>{
-          await dbDel(id);
-          for(const x of future)await dbDel(x.id);
-          toast(`${future.length+1} lançamentos removidos`,'var(--red)');renderAll();
-        }},
-        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-      ]);
-      return;
+
+  try{
+    const all=await dbAll();
+    const item=all.find(x=>x.id===id);
+    if(!item){await dbDel(id);renderAll();return}
+    if(item.groupId){
+      const future=all.filter(x=>x.groupId===item.groupId&&ym(x.year,x.month)>ym(item.year,item.month));
+      if(future.length>0){
+        showConfirm('Remover lançamento','Este lançamento faz parte de uma série.',[
+          {label:'Remover só este',cls:'btn-ghost',action:async()=>{await dbDel(id);toast('Removido','var(--red)');renderAll()}},
+          {label:`Remover este + ${future.length} seguinte(s)`,cls:'btn-danger',action:async()=>{
+            await dbDel(id);
+            for(const x of future)await dbDel(x.id);
+            toast(`${future.length+1} lançamentos removidos`,'var(--red)');renderAll();
+          }},
+          {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+        ]);
+        return;
+      }
     }
+    if(!confirm('Remover este lançamento?'))return;
+    await dbDel(id);toast('Removido','var(--red)');renderAll();
+
+  }catch(e){
+    console.error('[deleteTx]',e);
+    toast('Erro ao remover lançamento','var(--red)');
   }
-  if(!confirm('Remover este lançamento?'))return;
-  await dbDel(id);toast('Removido','var(--red)');renderAll();
 }
 
 function txCard(t){
@@ -504,70 +525,77 @@ function markLastUpdate(){
   toast('Marcado como atualizado!','var(--teal)');
 }
 async function renderDash(){
-  loadLastUpdate();
-  updateMonthLabels();
-  const all=await dbAll();
-  const pessoas=await pessoasAll();
-  const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
-  // Apply pessoa filter to ALL calculations if active
-  const{rows:allRows}=calcMonth(all,curYear,curMonth);
-  const filteredRows=pessoaFilter?allRows.filter(t=>t.pessoaId===pessoaFilter):allRows;
-  const income=filteredRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
-  const expense=filteredRows.filter(t=>t.type!=='income'&&t.type!=='credit').reduce((s,t)=>s+t.value,0);
-  const credit=filteredRows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
-  const balance=income-expense-credit;
-  const rows=filteredRows;
-  const fixed=rows.filter(t=>t.type==='fixed').reduce((s,t)=>s+t.value,0);
-  const variable=rows.filter(t=>t.type==='variable').reduce((s,t)=>s+t.value,0);
-  const totalOut=expense+credit;
-  const pct=income>0?Math.min(100,Math.round(totalOut/income*100)):0;
-  const barColor=pct<60?'var(--green)':pct<85?'var(--amber)':'var(--red)';
-  document.getElementById('summary-cards').innerHTML=`
-    <div class="stat-card"><div class="stat-icon">💵</div><div class="stat-label">Receitas</div><div class="stat-value green">${fmt(income)}</div></div>
-    <div class="stat-card"><div class="stat-icon">📤</div><div class="stat-label">Despesas</div><div class="stat-value red">${fmt(expense)}</div></div>
-    <div class="stat-card"><div class="stat-icon">⚖️</div><div class="stat-label">Saldo</div><div class="stat-value ${balance>=0?'green':'red'}">${balance>=0?'+':'-'}${fmt(balance)}</div></div>
-    <div class="stat-card"><div class="stat-icon">💳</div><div class="stat-label">Cartão</div><div class="stat-value amber">${fmt(credit)}</div></div>
-  `;
-  document.getElementById('prog-area').innerHTML=`
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:2px;flex-wrap:wrap;gap:4px">
-      <span>🏠 ${fmt(fixed)}</span><span>🛒 ${fmt(variable)}</span><span>💳 ${fmt(credit)}</span>
-    </div>
-    <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
-    <div class="prog-labels"><span>${pct}% comprometido</span><span style="color:${barColor};font-weight:500">${pct<60?'✓ Saudável':pct<85?'⚠ Atenção':'✗ Alto'}</span></div>
-  `;
-  const enrichedRows=rows.map(t=>{
-    const base={...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null};
-    if(t.subRepeatStart&&t.subitems&&t.subitems.length){
-      const activeSubs=getActiveSubitems(t.subitems,t.subRepeatStart.month,t.subRepeatStart.year,t.month,t.year);
-      return {...base,subitems:activeSubs,value:activeSubs.length?activeSubs.reduce((s,x)=>s+x.value,0):t.value};
+
+  try{
+    loadLastUpdate();
+    updateMonthLabels();
+    const all=await dbAll();
+    const pessoas=await pessoasAll();
+    const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
+    // Apply pessoa filter to ALL calculations if active
+    const{rows:allRows}=calcMonth(all,curYear,curMonth);
+    const filteredRows=pessoaFilter?allRows.filter(t=>t.pessoaId===pessoaFilter):allRows;
+    const income=filteredRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
+    const expense=filteredRows.filter(t=>t.type!=='income'&&t.type!=='credit').reduce((s,t)=>s+t.value,0);
+    const credit=filteredRows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
+    const balance=income-expense-credit;
+    const rows=filteredRows;
+    const fixed=rows.filter(t=>t.type==='fixed').reduce((s,t)=>s+t.value,0);
+    const variable=rows.filter(t=>t.type==='variable').reduce((s,t)=>s+t.value,0);
+    const totalOut=expense+credit;
+    const pct=income>0?Math.min(100,Math.round(totalOut/income*100)):0;
+    const barColor=pct<60?'var(--green)':pct<85?'var(--amber)':'var(--red)';
+    document.getElementById('summary-cards').innerHTML=`
+      <div class="stat-card"><div class="stat-icon">💵</div><div class="stat-label">Receitas</div><div class="stat-value green">${fmt(income)}</div></div>
+      <div class="stat-card"><div class="stat-icon">📤</div><div class="stat-label">Despesas</div><div class="stat-value red">${fmt(expense)}</div></div>
+      <div class="stat-card"><div class="stat-icon">⚖️</div><div class="stat-label">Saldo</div><div class="stat-value ${balance>=0?'green':'red'}">${balance>=0?'+':'-'}${fmt(balance)}</div></div>
+      <div class="stat-card"><div class="stat-icon">💳</div><div class="stat-label">Cartão</div><div class="stat-value amber">${fmt(credit)}</div></div>
+    `;
+    document.getElementById('prog-area').innerHTML=`
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:2px;flex-wrap:wrap;gap:4px">
+        <span>🏠 ${fmt(fixed)}</span><span>🛒 ${fmt(variable)}</span><span>💳 ${fmt(credit)}</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="prog-labels"><span>${pct}% comprometido</span><span style="color:${barColor};font-weight:500">${pct<60?'✓ Saudável':pct<85?'⚠ Atenção':'✗ Alto'}</span></div>
+    `;
+    const enrichedRows=rows.map(t=>{
+      const base={...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null};
+      if(t.subRepeatStart&&t.subitems&&t.subitems.length){
+        const activeSubs=getActiveSubitems(t.subitems,t.subRepeatStart.month,t.subRepeatStart.year,t.month,t.year);
+        return {...base,subitems:activeSubs,value:activeSubs.length?activeSubs.reduce((s,x)=>s+x.value,0):t.value};
+      }
+      return base;
+    });
+    const recent=[...enrichedRows].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id).slice(0,6);
+    // pessoa summary card
+    const pessoaSummaryEl=document.getElementById('pessoa-summary');
+    const pessoaSummaryCard=document.getElementById('pessoa-summary-card');
+    if(pessoaSummaryEl&&pessoas.length>1){
+      const summaryHtml=pessoas.map(p=>{
+        const pRows=allRows.filter(t=>t.pessoaId===p.id);
+        const pInc=pRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
+        const pExp=pRows.filter(t=>t.type!=='income'&&t.type!=='credit').reduce((s,t)=>s+t.value,0);
+        const pCred=pRows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
+        const pBal=pInc-pExp-pCred;
+        return`<div style='display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)'>
+          ${personAvatarHtml(p,28)}
+          <div style='flex:1'><div style='font-size:13px;font-weight:500'>${p.nome}</div><div style='font-size:11px;color:var(--text3)'>${fmt(pInc)} entrada · ${fmt(pExp+pCred)} saída</div></div>
+          <div style='font-family:var(--mono);font-size:13px;font-weight:600;color:${pBal>=0?'var(--green)':'var(--red)'}'>${pBal>=0?'+':'-'}${fmt(pBal)}</div>
+        </div>`;
+      }).join('');
+      pessoaSummaryEl.innerHTML=summaryHtml;
+      if(pessoaSummaryCard)pessoaSummaryCard.style.display='block';
+    }else{
+      if(pessoaSummaryCard)pessoaSummaryCard.style.display='none';
     }
-    return base;
-  });
-  const recent=[...enrichedRows].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id).slice(0,6);
-  // pessoa summary card
-  const pessoaSummaryEl=document.getElementById('pessoa-summary');
-  const pessoaSummaryCard=document.getElementById('pessoa-summary-card');
-  if(pessoaSummaryEl&&pessoas.length>1){
-    const summaryHtml=pessoas.map(p=>{
-      const pRows=allRows.filter(t=>t.pessoaId===p.id);
-      const pInc=pRows.filter(t=>t.type==='income').reduce((s,t)=>s+t.value,0);
-      const pExp=pRows.filter(t=>t.type!=='income'&&t.type!=='credit').reduce((s,t)=>s+t.value,0);
-      const pCred=pRows.filter(t=>t.type==='credit').reduce((s,t)=>s+t.value,0);
-      const pBal=pInc-pExp-pCred;
-      return`<div style='display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)'>
-        ${personAvatarHtml(p,28)}
-        <div style='flex:1'><div style='font-size:13px;font-weight:500'>${p.nome}</div><div style='font-size:11px;color:var(--text3)'>${fmt(pInc)} entrada · ${fmt(pExp+pCred)} saída</div></div>
-        <div style='font-family:var(--mono);font-size:13px;font-weight:600;color:${pBal>=0?'var(--green)':'var(--red)'}'>${pBal>=0?'+':'-'}${fmt(pBal)}</div>
-      </div>`;
-    }).join('');
-    pessoaSummaryEl.innerHTML=summaryHtml;
-    if(pessoaSummaryCard)pessoaSummaryCard.style.display='block';
-  }else{
-    if(pessoaSummaryCard)pessoaSummaryCard.style.display='none';
+    document.getElementById('recent-list').innerHTML=recent.length
+      ?recent.map(txCard).join('')
+      :`<div class="empty"><div class="empty-icon">📊</div>Nenhum lançamento em ${MONTHS[curMonth]}.<br>Toque em <strong>+ Novo</strong> para começar.</div>`;
+
+  }catch(e){
+    console.error('[renderDash]',e);
+    toast('Erro ao carregar dashboard','var(--red)');
   }
-  document.getElementById('recent-list').innerHTML=recent.length
-    ?recent.map(txCard).join('')
-    :`<div class="empty"><div class="empty-icon">📊</div>Nenhum lançamento em ${MONTHS[curMonth]}.<br>Toque em <strong>+ Novo</strong> para começar.</div>`;
 }
 
 function filterTx(f,btn){
@@ -576,23 +604,30 @@ function filterTx(f,btn){
   btn.classList.add('active');renderTx();
 }
 async function renderTx(){
-  updateMonthLabels();
-  const all=await dbAll();
-  const pessoas=await pessoasAll();
-  const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
-  let rows=all.filter(t=>t.year===curYear&&t.month===curMonth);
-  if(pessoaFilter)rows=rows.filter(t=>t.pessoaId===pessoaFilter);
-  rows=rows.map(t=>{
-    const base={...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null};
-    if(t.subRepeatStart&&t.subitems&&t.subitems.length){
-      const activeSubs=getActiveSubitems(t.subitems,t.subRepeatStart.month,t.subRepeatStart.year,t.month,t.year);
-      return {...base,subitems:activeSubs,value:activeSubs.length?activeSubs.reduce((s,x)=>s+x.value,0):t.value};
-    }
-    return base;
-  });
-  const filtered=txFilter==='all'?rows:rows.filter(t=>t.type===txFilter);
-  const sorted=[...filtered].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id);
-  document.getElementById('tx-list').innerHTML=sorted.length
-    ?sorted.map(txCard).join('')
-    :`<div class="empty"><div class="empty-icon">🗂️</div>Nenhum lançamento${txFilter!=='all'?' nesta categoria':''}<br>em ${MONTHS[curMonth]}.</div>`;
+
+  try{
+    updateMonthLabels();
+    const all=await dbAll();
+    const pessoas=await pessoasAll();
+    const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
+    let rows=all.filter(t=>t.year===curYear&&t.month===curMonth);
+    if(pessoaFilter)rows=rows.filter(t=>t.pessoaId===pessoaFilter);
+    rows=rows.map(t=>{
+      const base={...t,_pessoa:t.pessoaId?pessoaMap[t.pessoaId]:null};
+      if(t.subRepeatStart&&t.subitems&&t.subitems.length){
+        const activeSubs=getActiveSubitems(t.subitems,t.subRepeatStart.month,t.subRepeatStart.year,t.month,t.year);
+        return {...base,subitems:activeSubs,value:activeSubs.length?activeSubs.reduce((s,x)=>s+x.value,0):t.value};
+      }
+      return base;
+    });
+    const filtered=txFilter==='all'?rows:rows.filter(t=>t.type===txFilter);
+    const sorted=[...filtered].sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:b.id-a.id);
+    document.getElementById('tx-list').innerHTML=sorted.length
+      ?sorted.map(txCard).join('')
+      :`<div class="empty"><div class="empty-icon">🗂️</div>Nenhum lançamento${txFilter!=='all'?' nesta categoria':''}<br>em ${MONTHS[curMonth]}.</div>`;
+
+  }catch(e){
+    console.error('[renderTx]',e);
+    toast('Erro ao carregar lançamentos','var(--red)');
+  }
 }

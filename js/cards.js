@@ -101,46 +101,67 @@ function showAddCartaoModal(cartao=null){
 }
 
 async function saveCartao(){
-  const name=document.getElementById('cc-name')?.value.trim();
-  const fechamento=parseInt(document.getElementById('cc-fech')?.value)||0;
-  const vencimento=parseInt(document.getElementById('cc-venc')?.value)||0;
-  const color=document.getElementById('p-color')?.value||CARD_COLORS[0];
-  const pessoaId=getSelectedPessoa('cc-pessoa-chips');
-  const limite=parseFloat(document.getElementById('cc-limite')?.value)||null;
-  if(!name||!fechamento||!vencimento||fechamento<1||fechamento>31||vencimento<1||vencimento>31){
-    toast('Preencha nome e dias válidos!','var(--red)');return;
+
+  try{
+    const name=document.getElementById('cc-name')?.value.trim();
+    const fechamento=parseInt(document.getElementById('cc-fech')?.value)||0;
+    const vencimento=parseInt(document.getElementById('cc-venc')?.value)||0;
+    const color=document.getElementById('p-color')?.value||CARD_COLORS[0];
+    const pessoaId=getSelectedPessoa('cc-pessoa-chips');
+    const limite=parseFloat(document.getElementById('cc-limite')?.value)||null;
+    if(!name||!fechamento||!vencimento||fechamento<1||fechamento>31||vencimento<1||vencimento>31){
+      toast('Preencha nome e dias válidos!','var(--red)');return;
+    }
+    await cartoesAdd({name,fechamento,vencimento,color,pessoaId,limite,createdAt:Date.now()});
+    toast('Cartão adicionado!','var(--blue)');
+    closeModal();renderCards();refreshBudgetCartoes();
+
+  }catch(e){
+    console.error('[saveCartao]',e);
+    toast('Erro ao salvar cartão','var(--red)');
   }
-  await cartoesAdd({name,fechamento,vencimento,color,pessoaId,limite,createdAt:Date.now()});
-  toast('Cartão adicionado!','var(--blue)');
-  closeModal();renderCards();refreshBudgetCartoes();
 }
 
 async function saveCartaoEdit(id){
-  const name=document.getElementById('cc-name')?.value.trim();
-  const fechamento=parseInt(document.getElementById('cc-fech')?.value)||0;
-  const vencimento=parseInt(document.getElementById('cc-venc')?.value)||0;
-  const color=document.getElementById('p-color')?.value||CARD_COLORS[0];
-  const pessoaId=getSelectedPessoa('cc-pessoa-chips');
-  const limite=parseFloat(document.getElementById('cc-limite')?.value)||null;
-  if(!name||!fechamento||!vencimento){toast('Preencha todos os campos!','var(--red)');return;}
-  const all=await cartoesAll();
-  const existing=all.find(c=>c.id===id);
-  if(!existing)return;
-  await cartoesPut({...existing,name,fechamento,vencimento,color,pessoaId,limite});
-  toast('Cartão atualizado!','var(--blue)');
-  closeModal();renderCards();refreshBudgetCartoes();
+
+  try{
+    const name=document.getElementById('cc-name')?.value.trim();
+    const fechamento=parseInt(document.getElementById('cc-fech')?.value)||0;
+    const vencimento=parseInt(document.getElementById('cc-venc')?.value)||0;
+    const color=document.getElementById('p-color')?.value||CARD_COLORS[0];
+    const pessoaId=getSelectedPessoa('cc-pessoa-chips');
+    const limite=parseFloat(document.getElementById('cc-limite')?.value)||null;
+    if(!name||!fechamento||!vencimento){toast('Preencha todos os campos!','var(--red)');return;}
+    const all=await cartoesAll();
+    const existing=all.find(c=>c.id===id);
+    if(!existing)return;
+    await cartoesPut({...existing,name,fechamento,vencimento,color,pessoaId,limite});
+    toast('Cartão atualizado!','var(--blue)');
+    closeModal();renderCards();refreshBudgetCartoes();
+
+  }catch(e){
+    console.error('[saveCartaoEdit]',e);
+    toast('Erro ao salvar cartão','var(--red)');
+  }
 }
 
 async function deleteCartao(id){
-  if(!confirm('Remover este cartão e todos os gastos associados?'))return;
-  // delete all gastos for this card
-  const all=await gastosAll();
-  for(const g of all.filter(g=>g.cartaoId===id))await gastosDel(g.id);
-  const allRec=await recorrentesAll();
-  for(const r of allRec.filter(r=>r.cartaoId===id))await recorrentesDel(r.id);
-  await cartoesDel(id);
-  toast('Cartão removido','var(--red)');
-  renderCards();refreshBudgetCartoes();
+
+  try{
+    if(!confirm('Remover este cartão e todos os gastos associados?'))return;
+    // delete all gastos for this card
+    const all=await gastosAll();
+    for(const g of all.filter(g=>g.cartaoId===id))await gastosDel(g.id);
+    const allRec=await recorrentesAll();
+    for(const r of allRec.filter(r=>r.cartaoId===id))await recorrentesDel(r.id);
+    await cartoesDel(id);
+    toast('Cartão removido','var(--red)');
+    renderCards();refreshBudgetCartoes();
+
+  }catch(e){
+    console.error('[deleteCartao]',e);
+    toast('Erro ao remover cartão','var(--red)');
+  }
 }
 
 function showAddGastoModal(cartaoId, cartao, gasto=null){
@@ -405,187 +426,222 @@ function getRawGastoSubitems(){
   }).filter(Boolean);
 }
 async function saveGasto(){
-  const name=document.getElementById('cg-name')?.value.trim();
-  const val=getGastoVal();
-  const date=document.getElementById('cg-date')?.value||todayISO();
-  const obs=document.getElementById('cg-obs')?.value.trim()||'';
-  const cartaoId=parseInt(document.getElementById('cg-cartao-id')?.value);
-  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
-  const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
-  const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
-  const pnum=parseInt(document.getElementById('cg-pnum')?.value)||1;
-  const ptotal=parseInt(document.getElementById('cg-ptotal')?.value)||1;
-  const allCartoes=await cartoesAll();
-  const cartaoObj=allCartoes.find(c=>c.id===cartaoId)||{fechamento:1,vencimento:1};
-  if(parcelado&&ptotal>1){
-    if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return;}
-    let d=date;
-    const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    for(let i=pnum-1;i<ptotal;i++){
-      const label=name+' '+(i+1)+'/'+ptotal;
-      await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,cartaoId,
-        parcela:i+1,totalParcelas:ptotal,groupId,createdAt:Date.now()});
-      const nd=addMonths(d,1);if(nd)d=nd;
+
+  try{
+    const name=document.getElementById('cg-name')?.value.trim();
+    const val=getGastoVal();
+    const date=document.getElementById('cg-date')?.value||todayISO();
+    const obs=document.getElementById('cg-obs')?.value.trim()||'';
+    const cartaoId=parseInt(document.getElementById('cg-cartao-id')?.value);
+    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
+    const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
+    const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
+    const pnum=parseInt(document.getElementById('cg-pnum')?.value)||1;
+    const ptotal=parseInt(document.getElementById('cg-ptotal')?.value)||1;
+    const allCartoes=await cartoesAll();
+    const cartaoObj=allCartoes.find(c=>c.id===cartaoId)||{fechamento:1,vencimento:1};
+    if(parcelado&&ptotal>1){
+      if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return;}
+      let d=date;
+      const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      for(let i=pnum-1;i<ptotal;i++){
+        const label=name+' '+(i+1)+'/'+ptotal;
+        await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,cartaoId,
+          parcela:i+1,totalParcelas:ptotal,groupId,createdAt:Date.now()});
+        const nd=addMonths(d,1);if(nd)d=nd;
+      }
+      toast((ptotal-pnum+1)+' parcelas adicionadas!','var(--purple)');
+    }else{
+      const gsubs=getRawGastoSubitems();
+      const hasSubRep=gsubs.length>0;
+      const fatM=getFaturaMonth(date,cartaoObj);
+      const srs=hasSubRep&&fatM?{month:fatM.month,year:fatM.year}:null;
+      const gval=gsubs.length?gsubs.reduce((t,s)=>t+s.value,0):val;
+      await gastosAdd({name,value:gval,rawExpr:cgRawExpr,date,obs,cartaoId,
+        subitems:gsubs.length?gsubs:undefined,
+        subRepeatStart:srs||undefined,
+        createdAt:Date.now()});
+      toast('Gasto adicionado!');
     }
-    toast((ptotal-pnum+1)+' parcelas adicionadas!','var(--purple)');
-  }else{
-    const gsubs=getRawGastoSubitems();
-    const hasSubRep=gsubs.length>0;
-    const fatM=getFaturaMonth(date,cartaoObj);
-    const srs=hasSubRep&&fatM?{month:fatM.month,year:fatM.year}:null;
-    const gval=gsubs.length?gsubs.reduce((t,s)=>t+s.value,0):val;
-    await gastosAdd({name,value:gval,rawExpr:cgRawExpr,date,obs,cartaoId,
-      subitems:gsubs.length?gsubs:undefined,
-      subRepeatStart:srs||undefined,
-      createdAt:Date.now()});
-    toast('Gasto adicionado!');
+    closeModal();renderCards();refreshBudgetCartoes();
+
+  }catch(e){
+    console.error('[saveGasto]',e);
+    toast('Erro ao salvar gasto','var(--red)');
   }
-  closeModal();renderCards();refreshBudgetCartoes();
 }
 
 async function saveGastoEdit(id){
-  const name=document.getElementById('cg-name')?.value.trim();
-  const val=getGastoVal();
-  const date=document.getElementById('cg-date')?.value||todayISO();
-  const obs=document.getElementById('cg-obs')?.value.trim()||'';
-  if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
-  const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
-  const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
-  const pnum=parseInt(document.getElementById('cg-pnum')?.value)||1;
-  const ptotal=parseInt(document.getElementById('cg-ptotal')?.value)||1;
-  const all=await gastosAll();
-  const existing=all.find(g=>g.id===id);
-  if(!existing)return;
-  const allCartoesEdit=await cartoesAll();
-  const cartaoEdit=allCartoesEdit.find(c=>c.id===existing.cartaoId)||{fechamento:1,vencimento:1};
-  // If has groupId (series), offer to update this + following
-  if(existing.groupId){
-    const future=all.filter(g=>g.groupId===existing.groupId&&
-      (g.date||'')>=(existing.date||'')&&g.id!==existing.id);
-    if(future.length>0){
-      closeModal();
-      showConfirm('Editar gasto parcelado','Este gasto faz parte de uma série de parcelas.',[
-        {label:'Apenas esta parcela',cls:'btn-ghost',action:async()=>{
-          await gastosPut({...existing,name,value:val,rawExpr:cgRawExpr,date,obs,
-            parcela:parcelado?pnum:existing.parcela,
-            totalParcelas:parcelado?ptotal:existing.totalParcelas});
-          toast('Parcela atualizada!');renderCards();refreshBudgetCartoes();
-        }},
-        {label:'Esta e seguintes',cls:'btn-primary',action:async()=>{
-          // Delete this and future, recreate series from this parcela forward
-          await gastosDel(id);
-          for(const g of future)await gastosDel(g.id);
-          const newGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
-          const remaining=parcelado?ptotal-pnum+1:existing.totalParcelas-(existing.parcela||1)+1;
-          const startParcela=parcelado?pnum:(existing.parcela||1);
-          const newTotal=parcelado?ptotal:existing.totalParcelas;
-          // Strip any existing "N/M" suffix from name before relabeling
-          const baseName=name.replace(/\s+\d+\/\d+$/, '').trim();
-          let d=date;
-          for(let i=0;i<remaining;i++){
-            const label=baseName+' '+(startParcela+i)+'/'+(newTotal||remaining);
-            await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,
-              cartaoId:existing.cartaoId,parcela:startParcela+i,
-              totalParcelas:newTotal||remaining,groupId:newGroupId,createdAt:Date.now()});
-            const nd=addMonths(d,1);if(nd)d=nd;
-          }
-          toast('Série atualizada!','var(--teal)');renderCards();refreshBudgetCartoes();
-        }},
-        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-      ]);
-      return;
+
+  try{
+    const name=document.getElementById('cg-name')?.value.trim();
+    const val=getGastoVal();
+    const date=document.getElementById('cg-date')?.value||todayISO();
+    const obs=document.getElementById('cg-obs')?.value.trim()||'';
+    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
+    const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
+    const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
+    const pnum=parseInt(document.getElementById('cg-pnum')?.value)||1;
+    const ptotal=parseInt(document.getElementById('cg-ptotal')?.value)||1;
+    const all=await gastosAll();
+    const existing=all.find(g=>g.id===id);
+    if(!existing)return;
+    const allCartoesEdit=await cartoesAll();
+    const cartaoEdit=allCartoesEdit.find(c=>c.id===existing.cartaoId)||{fechamento:1,vencimento:1};
+    // If has groupId (series), offer to update this + following
+    if(existing.groupId){
+      const future=all.filter(g=>g.groupId===existing.groupId&&
+        (g.date||'')>=(existing.date||'')&&g.id!==existing.id);
+      if(future.length>0){
+        closeModal();
+        showConfirm('Editar gasto parcelado','Este gasto faz parte de uma série de parcelas.',[
+          {label:'Apenas esta parcela',cls:'btn-ghost',action:async()=>{
+            await gastosPut({...existing,name,value:val,rawExpr:cgRawExpr,date,obs,
+              parcela:parcelado?pnum:existing.parcela,
+              totalParcelas:parcelado?ptotal:existing.totalParcelas});
+            toast('Parcela atualizada!');renderCards();refreshBudgetCartoes();
+          }},
+          {label:'Esta e seguintes',cls:'btn-primary',action:async()=>{
+            // Delete this and future, recreate series from this parcela forward
+            await gastosDel(id);
+            for(const g of future)await gastosDel(g.id);
+            const newGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
+            const remaining=parcelado?ptotal-pnum+1:existing.totalParcelas-(existing.parcela||1)+1;
+            const startParcela=parcelado?pnum:(existing.parcela||1);
+            const newTotal=parcelado?ptotal:existing.totalParcelas;
+            // Strip any existing "N/M" suffix from name before relabeling
+            const baseName=name.replace(/\s+\d+\/\d+$/, '').trim();
+            let d=date;
+            for(let i=0;i<remaining;i++){
+              const label=baseName+' '+(startParcela+i)+'/'+(newTotal||remaining);
+              await gastosAdd({name:label,value:val,rawExpr:cgRawExpr,date:d,obs,
+                cartaoId:existing.cartaoId,parcela:startParcela+i,
+                totalParcelas:newTotal||remaining,groupId:newGroupId,createdAt:Date.now()});
+              const nd=addMonths(d,1);if(nd)d=nd;
+            }
+            toast('Série atualizada!','var(--teal)');renderCards();refreshBudgetCartoes();
+          }},
+          {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+        ]);
+        return;
+      }
     }
+    // Single gasto (no series or no future)
+    const gsubs2Raw=getRawGastoSubitems();
+    const hasSubRep2=gsubs2Raw.length>0;
+    const faturaEditAtual={month:curMonth,year:curYear};
+    const defaultStart=existing.subRepeatStart||faturaEditAtual;
+    // 1. Resolver start de cada subitem do DOM
+    const bankBySgid=new Map((existing.subitems||[]).filter(s=>s.sgid).map(s=>[s.sgid,s]));
+    const bankByKey=new Map((existing.subitems||[]).map(s=>[(s.name||'')+'|'+(s.value||0),s]));
+    const gsubs2=gsubs2Raw.map(s=>{
+      const bankSub=(s.sgid&&bankBySgid.get(s.sgid))||bankByKey.get((s.name||'')+'|'+(s.value||0));
+      if(bankSub){
+        const sM=bankSub.startMonth!=null?bankSub.startMonth:defaultStart.month;
+        const sY=bankSub.startYear!=null?bankSub.startYear:defaultStart.year;
+        return{...s,startMonth:sM,startYear:sY};
+      }
+      if(s.repeat>0)return{...s,startMonth:faturaEditAtual.month,startYear:faturaEditAtual.year};
+      return s;
+    });
+    // 2. Subitems encerrados do banco (repeat>0 e expirado pelo seu start individual)
+    // nao incluir os que ja estao no DOM (evita duplicata)
+    const domSgids=new Set(gsubs2.map(s=>s.sgid).filter(Boolean));
+    const domKeys=new Set(gsubs2.map(s=>(s.name||'')+'|'+(s.value||0)));
+    const ended=(existing.subitems||[]).filter(s=>{
+      const sRep=s.repeat||1; // subitems antigos sem repeat tratados como repeat=1
+      if(sRep===0)return false;
+      if(s.sgid&&domSgids.has(s.sgid))return false; // ja no DOM
+      if(domKeys.has((s.name||'')+'|'+(s.value||0)))return false; // ja no DOM por chave
+      const sM=s.startMonth!=null?s.startMonth:defaultStart.month;
+      const sY=s.startYear!=null?s.startYear:defaultStart.year;
+      const elap=(curYear*12+curMonth)-(sY*12+sM);
+      return elap>=sRep; // expirado
+    });
+    const finalGsubs=[...gsubs2,...ended];
+    // 3. subRepeatStart = start mais antigo
+    const srs2=(()=>{
+      if(!hasSubRep2)return null;
+      const candidates=finalGsubs.filter(s=>s.startMonth!=null).map(s=>({month:s.startMonth,year:s.startYear}));
+      if(existing.subRepeatStart)candidates.push(existing.subRepeatStart);
+      if(!candidates.length)return faturaEditAtual;
+      return candidates.reduce((min,c)=>c.year*12+c.month<min.year*12+min.month?c:min);
+    })();
+    const activeNow=srs2?getActiveSubitems(finalGsubs,srs2.month,srs2.year,curMonth,curYear):finalGsubs;
+    const gval2=activeNow.length?activeNow.reduce((t,s)=>t+s.value,0):val;
+    await gastosPut({...existing,name,value:gval2,rawExpr:cgRawExpr,date,obs,
+      subitems:finalGsubs.length?finalGsubs:undefined,
+      subRepeatStart:srs2||existing.subRepeatStart||undefined,
+      parcela:parcelado?pnum:existing.parcela||null,
+      totalParcelas:parcelado?ptotal:existing.totalParcelas||null});
+    toast('Gasto atualizado!');
+    closeModal();renderCards();refreshBudgetCartoes();
+
+  }catch(e){
+    console.error('[saveGastoEdit]',e);
+    toast('Erro ao salvar gasto','var(--red)');
   }
-  // Single gasto (no series or no future)
-  const gsubs2Raw=getRawGastoSubitems();
-  const hasSubRep2=gsubs2Raw.length>0;
-  const faturaEditAtual={month:curMonth,year:curYear};
-  const defaultStart=existing.subRepeatStart||faturaEditAtual;
-  // 1. Resolver start de cada subitem do DOM
-  const bankBySgid=new Map((existing.subitems||[]).filter(s=>s.sgid).map(s=>[s.sgid,s]));
-  const bankByKey=new Map((existing.subitems||[]).map(s=>[(s.name||'')+'|'+(s.value||0),s]));
-  const gsubs2=gsubs2Raw.map(s=>{
-    const bankSub=(s.sgid&&bankBySgid.get(s.sgid))||bankByKey.get((s.name||'')+'|'+(s.value||0));
-    if(bankSub){
-      const sM=bankSub.startMonth!=null?bankSub.startMonth:defaultStart.month;
-      const sY=bankSub.startYear!=null?bankSub.startYear:defaultStart.year;
-      return{...s,startMonth:sM,startYear:sY};
-    }
-    if(s.repeat>0)return{...s,startMonth:faturaEditAtual.month,startYear:faturaEditAtual.year};
-    return s;
-  });
-  // 2. Subitems encerrados do banco (repeat>0 e expirado pelo seu start individual)
-  // nao incluir os que ja estao no DOM (evita duplicata)
-  const domSgids=new Set(gsubs2.map(s=>s.sgid).filter(Boolean));
-  const domKeys=new Set(gsubs2.map(s=>(s.name||'')+'|'+(s.value||0)));
-  const ended=(existing.subitems||[]).filter(s=>{
-    const sRep=s.repeat||1; // subitems antigos sem repeat tratados como repeat=1
-    if(sRep===0)return false;
-    if(s.sgid&&domSgids.has(s.sgid))return false; // ja no DOM
-    if(domKeys.has((s.name||'')+'|'+(s.value||0)))return false; // ja no DOM por chave
-    const sM=s.startMonth!=null?s.startMonth:defaultStart.month;
-    const sY=s.startYear!=null?s.startYear:defaultStart.year;
-    const elap=(curYear*12+curMonth)-(sY*12+sM);
-    return elap>=sRep; // expirado
-  });
-  const finalGsubs=[...gsubs2,...ended];
-  // 3. subRepeatStart = start mais antigo
-  const srs2=(()=>{
-    if(!hasSubRep2)return null;
-    const candidates=finalGsubs.filter(s=>s.startMonth!=null).map(s=>({month:s.startMonth,year:s.startYear}));
-    if(existing.subRepeatStart)candidates.push(existing.subRepeatStart);
-    if(!candidates.length)return faturaEditAtual;
-    return candidates.reduce((min,c)=>c.year*12+c.month<min.year*12+min.month?c:min);
-  })();
-  const activeNow=srs2?getActiveSubitems(finalGsubs,srs2.month,srs2.year,curMonth,curYear):finalGsubs;
-  const gval2=activeNow.length?activeNow.reduce((t,s)=>t+s.value,0):val;
-  await gastosPut({...existing,name,value:gval2,rawExpr:cgRawExpr,date,obs,
-    subitems:finalGsubs.length?finalGsubs:undefined,
-    subRepeatStart:srs2||existing.subRepeatStart||undefined,
-    parcela:parcelado?pnum:existing.parcela||null,
-    totalParcelas:parcelado?ptotal:existing.totalParcelas||null});
-  toast('Gasto atualizado!');
-  closeModal();renderCards();refreshBudgetCartoes();
 }
 
 async function deleteGasto(id){
-  const all=await gastosAll();
-  const item=all.find(g=>g.id===id);
-  if(!item){await gastosDel(id);renderCards();refreshBudgetCartoes();return;}
-  if(item.groupId){
-    const future=all.filter(g=>g.groupId===item.groupId&&(g.date||'')>=(item.date||'')&&g.id!==item.id);
-    if(future.length>0){
-      showConfirm('Remover parcela','Este gasto faz parte de uma série.',[
-        {label:'Remover só esta',cls:'btn-ghost',action:async()=>{
-          await gastosDel(id);toast('Parcela removida','var(--red)');
-          renderCards();refreshBudgetCartoes();
-        }},
-        {label:'Esta e seguintes ('+( future.length+1)+')',cls:'btn-danger',action:async()=>{
-          await gastosDel(id);
-          for(const g of future)await gastosDel(g.id);
-          toast('Parcelas removidas','var(--red)');renderCards();refreshBudgetCartoes();
-        }},
-        {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-      ]);
-      return;
+
+  try{
+    const all=await gastosAll();
+    const item=all.find(g=>g.id===id);
+    if(!item){await gastosDel(id);renderCards();refreshBudgetCartoes();return;}
+    if(item.groupId){
+      const future=all.filter(g=>g.groupId===item.groupId&&(g.date||'')>=(item.date||'')&&g.id!==item.id);
+      if(future.length>0){
+        showConfirm('Remover parcela','Este gasto faz parte de uma série.',[
+          {label:'Remover só esta',cls:'btn-ghost',action:async()=>{
+            await gastosDel(id);toast('Parcela removida','var(--red)');
+            renderCards();refreshBudgetCartoes();
+          }},
+          {label:'Esta e seguintes ('+( future.length+1)+')',cls:'btn-danger',action:async()=>{
+            await gastosDel(id);
+            for(const g of future)await gastosDel(g.id);
+            toast('Parcelas removidas','var(--red)');renderCards();refreshBudgetCartoes();
+          }},
+          {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+        ]);
+        return;
+      }
     }
+    if(!confirm('Remover este gasto?'))return;
+    await gastosDel(id);toast('Gasto removido','var(--red)');
+    renderCards();refreshBudgetCartoes();
+
+  }catch(e){
+    console.error('[deleteGasto]',e);
+    toast('Erro ao remover gasto','var(--red)');
   }
-  if(!confirm('Remover este gasto?'))return;
-  await gastosDel(id);toast('Gasto removido','var(--red)');
-  renderCards();refreshBudgetCartoes();
 }
 
 async function editGasto(cartaoId, gastoId){
-  const cartoes=await cartoesAll();
-  const gastos=await gastosAll();
-  const cartao=cartoes.find(c=>c.id===cartaoId);
-  const gasto=gastos.find(g=>g.id===gastoId);
-  if(cartao&&gasto)showAddGastoModal(cartaoId,cartao,gasto);
+
+  try{
+    const cartoes=await cartoesAll();
+    const gastos=await gastosAll();
+    const cartao=cartoes.find(c=>c.id===cartaoId);
+    const gasto=gastos.find(g=>g.id===gastoId);
+    if(cartao&&gasto)showAddGastoModal(cartaoId,cartao,gasto);
+
+  }catch(e){
+    console.error('[editGasto]',e);
+    toast('Erro ao abrir gasto','var(--red)');
+  }
 }
 async function editCartao(cartaoId){
-  const cartoes=await cartoesAll();
-  const cartao=cartoes.find(c=>c.id===cartaoId);
-  if(cartao)showAddCartaoModal(cartao);
+
+  try{
+    const cartoes=await cartoesAll();
+    const cartao=cartoes.find(c=>c.id===cartaoId);
+    if(cartao)showAddCartaoModal(cartao);
+
+  }catch(e){
+    console.error('[editCartao]',e);
+    toast('Erro ao abrir cartão','var(--red)');
+  }
 }
 
 function showAddRecorrenteModal(cartaoId, recorrente){
@@ -652,43 +708,71 @@ function getCrSubitems(){
   }).filter(Boolean);
 }
 async function saveRecorrente(){
-  const cartaoId=parseInt(document.getElementById('cr-cartao-id')?.value);
-  const name=document.getElementById('cr-name')?.value.trim();
-  const subitems=getCrSubitems();
-  const value=subitems.length?subitems.reduce((t,s)=>t+s.value,0):parseFloat(document.getElementById('cr-val')?.value)||0;
-  const obs=document.getElementById('cr-obs')?.value.trim()||'';
-  if(!name||value<=0){toast('Preencha nome e valor!','var(--red)');return;}
-  await recorrentesAdd({cartaoId,name,value,subitems,obs,createdAt:Date.now()});
-  toast('Recorrência adicionada!','var(--teal)');
-  closeModal();renderCards();
+
+  try{
+    const cartaoId=parseInt(document.getElementById('cr-cartao-id')?.value);
+    const name=document.getElementById('cr-name')?.value.trim();
+    const subitems=getCrSubitems();
+    const value=subitems.length?subitems.reduce((t,s)=>t+s.value,0):parseFloat(document.getElementById('cr-val')?.value)||0;
+    const obs=document.getElementById('cr-obs')?.value.trim()||'';
+    if(!name||value<=0){toast('Preencha nome e valor!','var(--red)');return;}
+    await recorrentesAdd({cartaoId,name,value,subitems,obs,createdAt:Date.now()});
+    toast('Recorrência adicionada!','var(--teal)');
+    closeModal();renderCards();
+
+  }catch(e){
+    console.error('[saveRecorrente]',e);
+    toast('Erro ao salvar recorrência','var(--red)');
+  }
 }
 async function saveRecorrenteEdit(id){
-  const name=document.getElementById('cr-name')?.value.trim();
-  const subitems=getCrSubitems();
-  const value=subitems.length?subitems.reduce((t,s)=>t+s.value,0):parseFloat(document.getElementById('cr-val')?.value)||0;
-  const obs=document.getElementById('cr-obs')?.value.trim()||'';
-  if(!name||value<=0){toast('Preencha nome e valor!','var(--red)');return;}
-  const all=await recorrentesAll();
-  const existing=all.find(r=>r.id===id);
-  if(!existing)return;
-  await recorrentesPut({...existing,name,value,subitems,obs});
-  toast('Atualizado!','var(--teal)');
-  closeModal();renderCards();
+
+  try{
+    const name=document.getElementById('cr-name')?.value.trim();
+    const subitems=getCrSubitems();
+    const value=subitems.length?subitems.reduce((t,s)=>t+s.value,0):parseFloat(document.getElementById('cr-val')?.value)||0;
+    const obs=document.getElementById('cr-obs')?.value.trim()||'';
+    if(!name||value<=0){toast('Preencha nome e valor!','var(--red)');return;}
+    const all=await recorrentesAll();
+    const existing=all.find(r=>r.id===id);
+    if(!existing)return;
+    await recorrentesPut({...existing,name,value,subitems,obs});
+    toast('Atualizado!','var(--teal)');
+    closeModal();renderCards();
+
+  }catch(e){
+    console.error('[saveRecorrenteEdit]',e);
+    toast('Erro ao salvar recorrência','var(--red)');
+  }
 }
 async function editRecorrente(id){
-  const all=await recorrentesAll();
-  const rec=all.find(r=>r.id===id);
-  if(rec)showAddRecorrenteModal(rec.cartaoId,rec);
+
+  try{
+    const all=await recorrentesAll();
+    const rec=all.find(r=>r.id===id);
+    if(rec)showAddRecorrenteModal(rec.cartaoId,rec);
+
+  }catch(e){
+    console.error('[editRecorrente]',e);
+    toast('Erro ao abrir recorrência','var(--red)');
+  }
 }
 async function deleteRecorrente(id){
-  showConfirm('Remover recorrência','Será removida de todas as faturas futuras.',[
-    {label:'Remover',cls:'btn-danger',action:async()=>{
-      await recorrentesDel(id);
-      toast('Removida','var(--red)');
-      renderCards();
-    }},
-    {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
-  ]);
+
+  try{
+    showConfirm('Remover recorrência','Será removida de todas as faturas futuras.',[
+      {label:'Remover',cls:'btn-danger',action:async()=>{
+        await recorrentesDel(id);
+        toast('Removida','var(--red)');
+        renderCards();
+      }},
+      {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+    ]);
+
+  }catch(e){
+    console.error('[deleteRecorrente]',e);
+    toast('Erro ao remover recorrência','var(--red)');
+  }
 }
 // Retorna valor do gasto para a fatura indicada, considerando subRepeatStart
 function gastoValueForFatura(gasto, fatMonth, fatYear){
@@ -738,124 +822,131 @@ async function calcLimiteUsado(cartao, allGastos){
   return total;
 }
 async function renderCards(){
-  const cartoes=await cartoesAll();
-  const pessoas=await pessoasAll();
-  const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
-  const allGastos=await gastosAll();
-  const el=document.getElementById('cards-list');
-  if(!el)return;
-  if(!cartoes.length){
-    el.innerHTML='<div class="empty"><div class="empty-icon">💳</div>Nenhum cartão cadastrado.<br>Toque em <strong>+ Cartão</strong> para começar.</div>';
-    return;
-  }
-  let html='';
-  for(const cartao of cartoes){
-    // Show fatura for the selected period
-    const fatura={month:curMonth,year:curYear};
-    const gastosFaturaRaw=allGastos.filter(g=>{
-      if(g.cartaoId!==cartao.id)return false;
-      const fm=getFaturaMonth(g.date,cartao);
-      if(!fm)return false;
-      // gasto da fatura exata
-      if(fm.month===fatura.month&&fm.year===fatura.year)return true;
-      // gasto com subRepeatStart: aparece em faturas futuras se ainda tem subitems ativos
-      if(g.subRepeatStart&&g.subitems?.length){
-        const activeSubs=getActiveSubitems(g.subitems,g.subRepeatStart.month,g.subRepeatStart.year,fatura.month,fatura.year);
-        return activeSubs.length>0;
-      }
-      return false;
-    });
-    // aplicar subRepeatStart: calcular valor/subitems ativos para esta fatura
-    const gastosFatura=gastosFaturaRaw.map(g=>{
-      const res=gastoValueForFatura(g,fatura.month,fatura.year);
-      if(!res)return null;
-      return{...g,value:res.value,_activeSubs:res.subitems};
-    }).filter(Boolean);
-    const total=gastosFatura.reduce((s,g)=>s+g.value,0);
-    const allRecorrentes2=await recorrentesAll();
-    const recDoCartao2=allRecorrentes2.filter(r=>r.cartaoId===cartao.id);
-    const totalRec2=recDoCartao2.reduce((s,r)=>s+r.value,0);
-    const totalComRec=total+totalRec2;
-    const limiteUsado=cartao.limite?await calcLimiteUsado(cartao,allGastos):null;
-    const limitePct=cartao.limite?Math.min(100,limiteUsado/cartao.limite*100):0;
-    const limiteColor=limitePct>=90?'var(--red)':limitePct>=70?'var(--amber)':'var(--green)';
-    const pessoa=cartao.pessoaId?pessoaMap[cartao.pessoaId]:null;
-    html+=`<div class="card-item">
-      <div class="card-header">
-        <div class="card-logo" style="background:${cartao.color}">${cartao.name.substring(0,3).toUpperCase()}</div>
-        <div style="flex:1">
-          <div class="card-name">${cartao.name}</div>
-          <div class="card-dates">Fecha dia ${cartao.fechamento} · Vence dia ${cartao.vencimento} · Fatura ${MONTHS[fatura.month].substring(0,3)}/${fatura.year}</div>
-          ${pessoa?'<div style="margin-top:3px">'+personAvatarHtml(pessoa,14)+' <span style="font-size:11px;color:var(--text3)">'+pessoa.nome+'</span></div>':''}
+
+  try{
+    const cartoes=await cartoesAll();
+    const pessoas=await pessoasAll();
+    const pessoaMap=Object.fromEntries(pessoas.map(p=>[p.id,p]));
+    const allGastos=await gastosAll();
+    const el=document.getElementById('cards-list');
+    if(!el)return;
+    if(!cartoes.length){
+      el.innerHTML='<div class="empty"><div class="empty-icon">💳</div>Nenhum cartão cadastrado.<br>Toque em <strong>+ Cartão</strong> para começar.</div>';
+      return;
+    }
+    let html='';
+    for(const cartao of cartoes){
+      // Show fatura for the selected period
+      const fatura={month:curMonth,year:curYear};
+      const gastosFaturaRaw=allGastos.filter(g=>{
+        if(g.cartaoId!==cartao.id)return false;
+        const fm=getFaturaMonth(g.date,cartao);
+        if(!fm)return false;
+        // gasto da fatura exata
+        if(fm.month===fatura.month&&fm.year===fatura.year)return true;
+        // gasto com subRepeatStart: aparece em faturas futuras se ainda tem subitems ativos
+        if(g.subRepeatStart&&g.subitems?.length){
+          const activeSubs=getActiveSubitems(g.subitems,g.subRepeatStart.month,g.subRepeatStart.year,fatura.month,fatura.year);
+          return activeSubs.length>0;
+        }
+        return false;
+      });
+      // aplicar subRepeatStart: calcular valor/subitems ativos para esta fatura
+      const gastosFatura=gastosFaturaRaw.map(g=>{
+        const res=gastoValueForFatura(g,fatura.month,fatura.year);
+        if(!res)return null;
+        return{...g,value:res.value,_activeSubs:res.subitems};
+      }).filter(Boolean);
+      const total=gastosFatura.reduce((s,g)=>s+g.value,0);
+      const allRecorrentes2=await recorrentesAll();
+      const recDoCartao2=allRecorrentes2.filter(r=>r.cartaoId===cartao.id);
+      const totalRec2=recDoCartao2.reduce((s,r)=>s+r.value,0);
+      const totalComRec=total+totalRec2;
+      const limiteUsado=cartao.limite?await calcLimiteUsado(cartao,allGastos):null;
+      const limitePct=cartao.limite?Math.min(100,limiteUsado/cartao.limite*100):0;
+      const limiteColor=limitePct>=90?'var(--red)':limitePct>=70?'var(--amber)':'var(--green)';
+      const pessoa=cartao.pessoaId?pessoaMap[cartao.pessoaId]:null;
+      html+=`<div class="card-item">
+        <div class="card-header">
+          <div class="card-logo" style="background:${cartao.color}">${cartao.name.substring(0,3).toUpperCase()}</div>
+          <div style="flex:1">
+            <div class="card-name">${cartao.name}</div>
+            <div class="card-dates">Fecha dia ${cartao.fechamento} · Vence dia ${cartao.vencimento} · Fatura ${MONTHS[fatura.month].substring(0,3)}/${fatura.year}</div>
+            ${pessoa?'<div style="margin-top:3px">'+personAvatarHtml(pessoa,14)+' <span style="font-size:11px;color:var(--text3)">'+pessoa.nome+'</span></div>':''}
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="tx-btn edit" onclick="editCartao(${cartao.id})">✏️</button>
+            <button class="tx-btn del" onclick="deleteCartao(${cartao.id})">✕</button>
+          </div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="tx-btn edit" onclick="editCartao(${cartao.id})">✏️</button>
-          <button class="tx-btn del" onclick="deleteCartao(${cartao.id})">✕</button>
+        <div class="card-total${totalComRec===0?' zero':''}">${totalComRec===0?'R$ 0,00':'-'+fmt(totalComRec)}</div>
+        ${cartao.limite?'<div style="margin-top:6px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text3);margin-bottom:4px">'+
+          '<span>Usado: '+fmt(limiteUsado)+' / '+fmt(cartao.limite)+'</span>'+
+          '<span style="color:'+limiteColor+';font-weight:600">Disponível: '+(cartao.limite-limiteUsado<0?'-':'')+fmt(Math.abs(cartao.limite-limiteUsado))+'</span>'+
+          '</div>'+
+          '<div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">'+
+          '<div style="height:100%;border-radius:3px;background:'+limiteColor+';transition:width .4s;width:'+limitePct+'%"></div>'+
+          '</div>'+
+          (limitePct>=90?'<div style="font-size:11px;color:var(--red);margin-top:3px">⚠️ Próximo do limite</div>':'')+
+          '</div>':''}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:8px">
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:12px;color:var(--text3)">${gastosFatura.length} gasto(s)</span>
+            ${recDoCartao2.length===0?'<button class="btn btn-ghost btn-sm" onclick="showAddRecorrenteModal('+cartao.id+')">+ Recorrência</button>':''}
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showAddGastoModal(${cartao.id},${JSON.stringify(cartao).replace(/"/g,'&quot;')})">+ Gasto</button>
         </div>
-      </div>
-      <div class="card-total${totalComRec===0?' zero':''}">${totalComRec===0?'R$ 0,00':'-'+fmt(totalComRec)}</div>
-      ${cartao.limite?'<div style="margin-top:6px">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text3);margin-bottom:4px">'+
-        '<span>Usado: '+fmt(limiteUsado)+' / '+fmt(cartao.limite)+'</span>'+
-        '<span style="color:'+limiteColor+';font-weight:600">Disponível: '+(cartao.limite-limiteUsado<0?'-':'')+fmt(Math.abs(cartao.limite-limiteUsado))+'</span>'+
-        '</div>'+
-        '<div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">'+
-        '<div style="height:100%;border-radius:3px;background:'+limiteColor+';transition:width .4s;width:'+limitePct+'%"></div>'+
-        '</div>'+
-        (limitePct>=90?'<div style="font-size:11px;color:var(--red);margin-top:3px">⚠️ Próximo do limite</div>':'')+
-        '</div>':''}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:8px">
-        <div style="display:flex;gap:6px;align-items:center">
-          <span style="font-size:12px;color:var(--text3)">${gastosFatura.length} gasto(s)</span>
-          ${recDoCartao2.length===0?'<button class="btn btn-ghost btn-sm" onclick="showAddRecorrenteModal('+cartao.id+')">+ Recorrência</button>':''}
+        ${recDoCartao2.length?'<div style="margin-top:12px;margin-bottom:6px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+          '<span style="font-size:12px;font-weight:600;color:var(--text2)">🔄 Recorrências</span>'+
+          '<button class="btn btn-ghost btn-sm" onclick="showAddRecorrenteModal('+cartao.id+')">+ Nova</button>'+
+          '</div>'+
+          recDoCartao2.map(r=>{
+            const subHtmlR=r.subitems&&r.subitems.length?renderSubitemsHtml(r.subitems):'';
+            return '<div class="card-gasto-item card-gasto-col" style="border-left:3px solid var(--teal)">'+
+              '<div style="display:flex;align-items:center;gap:10px">'+
+              '<div class="card-gasto-info">'+
+              '<div class="card-gasto-name">'+r.name+'</div>'+
+              (r.obs?'<div class="card-gasto-meta"><span>💬 '+r.obs+'</span></div>':'')+
+              '</div>'+
+              '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
+              '<div class="card-gasto-val">-'+fmt(r.value)+'</div>'+
+              '<button class="tx-btn edit" onclick="editRecorrente('+r.id+')">✏️</button>'+
+              '<button class="tx-btn del" onclick="deleteRecorrente('+r.id+')">✕</button>'+
+              '</div></div>'+
+              (subHtmlR?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+subHtmlR+'</div>':'')+
+              '</div>';
+          }).join('')+
+          '</div>':''}\r\n      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:4px">
+          <span style="font-size:12px;color:var(--text3)">🛒 Gastos da fatura (${gastosFatura.length})</span>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="showAddGastoModal(${cartao.id},${JSON.stringify(cartao).replace(/"/g,'&quot;')})">+ Gasto</button>
-      </div>
-      ${recDoCartao2.length?'<div style="margin-top:12px;margin-bottom:6px">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
-        '<span style="font-size:12px;font-weight:600;color:var(--text2)">🔄 Recorrências</span>'+
-        '<button class="btn btn-ghost btn-sm" onclick="showAddRecorrenteModal('+cartao.id+')">+ Nova</button>'+
-        '</div>'+
-        recDoCartao2.map(r=>{
-          const subHtmlR=r.subitems&&r.subitems.length?renderSubitemsHtml(r.subitems):'';
-          return '<div class="card-gasto-item card-gasto-col" style="border-left:3px solid var(--teal)">'+
+        ${gastosFatura.length?gastosFatura.sort((a,b)=>(b.date||'')>(a.date||'')?-1:1).map(g=>{
+          const subHtml=g._activeSubs&&g._activeSubs.length?renderSubitemsHtml(g._activeSubs):'';
+          return '<div class="card-gasto-item card-gasto-col">'+
             '<div style="display:flex;align-items:center;gap:10px">'+
             '<div class="card-gasto-info">'+
-            '<div class="card-gasto-name">'+r.name+'</div>'+
-            (r.obs?'<div class="card-gasto-meta"><span>💬 '+r.obs+'</span></div>':'')+
-            '</div>'+
-            '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
-            '<div class="card-gasto-val">-'+fmt(r.value)+'</div>'+
-            '<button class="tx-btn edit" onclick="editRecorrente('+r.id+')">✏️</button>'+
-            '<button class="tx-btn del" onclick="deleteRecorrente('+r.id+')">✕</button>'+
+            '<div class="card-gasto-name">'+g.name+'</div>'+
+            '<div class="card-gasto-meta">'+
+            (g.date?'<span>📅 '+fmtDate(g.date)+'</span>':'')+
+            (g.obs?'<span>💬 '+g.obs+'</span>':'')+
             '</div></div>'+
-            (subHtmlR?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+subHtmlR+'</div>':'')+
+            '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
+            '<div class="card-gasto-val">-'+fmt(g.value)+'</div>'+
+            '<button class="tx-btn edit" onclick="editGasto('+cartao.id+','+g.id+')">✏️</button>'+
+            '<button class="tx-btn del" onclick="deleteGasto('+g.id+')">✕</button>'+
+            '</div></div>'+
+            (subHtml?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+subHtml+'</div>':'')+
             '</div>';
-        }).join('')+
-        '</div>':''}\r\n      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:4px">
-        <span style="font-size:12px;color:var(--text3)">🛒 Gastos da fatura (${gastosFatura.length})</span>
-      </div>
-      ${gastosFatura.length?gastosFatura.sort((a,b)=>(b.date||'')>(a.date||'')?-1:1).map(g=>{
-        const subHtml=g._activeSubs&&g._activeSubs.length?renderSubitemsHtml(g._activeSubs):'';
-        return '<div class="card-gasto-item card-gasto-col">'+
-          '<div style="display:flex;align-items:center;gap:10px">'+
-          '<div class="card-gasto-info">'+
-          '<div class="card-gasto-name">'+g.name+'</div>'+
-          '<div class="card-gasto-meta">'+
-          (g.date?'<span>📅 '+fmtDate(g.date)+'</span>':'')+
-          (g.obs?'<span>💬 '+g.obs+'</span>':'')+
-          '</div></div>'+
-          '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
-          '<div class="card-gasto-val">-'+fmt(g.value)+'</div>'+
-          '<button class="tx-btn edit" onclick="editGasto('+cartao.id+','+g.id+')">✏️</button>'+
-          '<button class="tx-btn del" onclick="deleteGasto('+g.id+')">✕</button>'+
-          '</div></div>'+
-          (subHtml?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+subHtml+'</div>':'')+
-          '</div>';
-      }).join(''):''}
-    </div>`;
+        }).join(''):''}
+      </div>`;
+    }
+    el.innerHTML=html;
+
+  }catch(e){
+    console.error('[renderCards]',e);
+    toast('Erro ao carregar cartões','var(--red)');
   }
-  el.innerHTML=html;
 }
 
 async function refreshBudgetCartoes(){

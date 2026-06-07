@@ -19,17 +19,24 @@ async function getPessoaById(id){
 }
 
 async function renderPessoasConfig(){
-  const list=document.getElementById('pessoas-list');
-  if(!list)return;
-  const pessoas=await pessoasAll();
-  if(!pessoas.length){list.innerHTML='<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma pessoa cadastrada.</div>';return;}
-  list.innerHTML=pessoas.map(p=>`
-    <div class="person-row">
-      ${personAvatarHtml(p,32)}
-      <span class="person-row-name">${p.nome}</span>
-      <button class="tx-btn edit" onclick="showEditPessoaModal(${p.id})">✏️</button>
-      <button class="tx-btn del" onclick="deletePessoa(${p.id})">✕</button>
-    </div>`).join('');
+
+  try{
+    const list=document.getElementById('pessoas-list');
+    if(!list)return;
+    const pessoas=await pessoasAll();
+    if(!pessoas.length){list.innerHTML='<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma pessoa cadastrada.</div>';return;}
+    list.innerHTML=pessoas.map(p=>`
+      <div class="person-row">
+        ${personAvatarHtml(p,32)}
+        <span class="person-row-name">${p.nome}</span>
+        <button class="tx-btn edit" onclick="showEditPessoaModal(${p.id})">✏️</button>
+        <button class="tx-btn del" onclick="deletePessoa(${p.id})">✕</button>
+      </div>`).join('');
+
+  }catch(e){
+    console.error('[renderPessoasConfig]',e);
+    toast('Erro ao carregar pessoas','var(--red)');
+  }
 }
 
 function showAddPessoaModal(pessoa=null){
@@ -67,49 +74,77 @@ async function showEditPessoaModal(id){
 }
 
 async function savePessoa(){
-  const nome=document.getElementById('p-nome')?.value.trim();
-  const color=document.getElementById('p-color')?.value||PERSON_COLORS[0];
-  if(!nome){toast('Informe o nome!','var(--red)');return;}
-  await pessoasAdd({nome,color,createdAt:Date.now()});
-  toast('Pessoa adicionada!','var(--teal)');
-  closeModal();renderPessoasConfig();renderPersonFilterBars();
+
+  try{
+    const nome=document.getElementById('p-nome')?.value.trim();
+    const color=document.getElementById('p-color')?.value||PERSON_COLORS[0];
+    if(!nome){toast('Informe o nome!','var(--red)');return;}
+    await pessoasAdd({nome,color,createdAt:Date.now()});
+    toast('Pessoa adicionada!','var(--teal)');
+    closeModal();renderPessoasConfig();renderPersonFilterBars();
+
+  }catch(e){
+    console.error('[savePessoa]',e);
+    toast('Erro ao salvar pessoa','var(--red)');
+  }
 }
 
 async function savePessoaEdit(id){
-  const nome=document.getElementById('p-nome')?.value.trim();
-  const color=document.getElementById('p-color')?.value||PERSON_COLORS[0];
-  if(!nome){toast('Informe o nome!','var(--red)');return;}
-  const all=await pessoasAll();
-  const existing=all.find(x=>x.id===id);
-  if(!existing)return;
-  await pessoasPut({...existing,nome,color});
-  toast('Pessoa atualizada!','var(--teal)');
-  closeModal();renderPessoasConfig();renderPersonFilterBars();renderAll();
+
+  try{
+    const nome=document.getElementById('p-nome')?.value.trim();
+    const color=document.getElementById('p-color')?.value||PERSON_COLORS[0];
+    if(!nome){toast('Informe o nome!','var(--red)');return;}
+    const all=await pessoasAll();
+    const existing=all.find(x=>x.id===id);
+    if(!existing)return;
+    await pessoasPut({...existing,nome,color});
+    toast('Pessoa atualizada!','var(--teal)');
+    closeModal();renderPessoasConfig();renderPersonFilterBars();renderAll();
+
+  }catch(e){
+    console.error('[savePessoaEdit]',e);
+    toast('Erro ao salvar pessoa','var(--red)');
+  }
 }
 
 async function deletePessoa(id){
-  if(!confirm('Remover esta pessoa? Os lançamentos associados não serão apagados.'))return;
-  await pessoasDel(id);
-  if(pessoaFilter===id)pessoaFilter=null;
-  toast('Pessoa removida','var(--red)');
-  renderPessoasConfig();renderPersonFilterBars();renderAll();
+
+  try{
+    if(!confirm('Remover esta pessoa? Os lançamentos associados não serão apagados.'))return;
+    await pessoasDel(id);
+    if(pessoaFilter===id)pessoaFilter=null;
+    toast('Pessoa removida','var(--red)');
+    renderPessoasConfig();renderPersonFilterBars();renderAll();
+
+  }catch(e){
+    console.error('[deletePessoa]',e);
+    toast('Erro ao remover pessoa','var(--red)');
+  }
 }
 
 // Render pessoa chips inside a form (tx or budget)
 async function renderPessoaChips(containerId,selectedId){
-  const el=document.getElementById(containerId);
-  if(!el)return;
-  const pessoas=await pessoasAll();
-  if(!pessoas.length){
-    const group=document.getElementById(containerId.replace('-chips','-group'));
-    if(group)group.style.display='none';
-    return;
+
+  try{
+    const el=document.getElementById(containerId);
+    if(!el)return;
+    const pessoas=await pessoasAll();
+    if(!pessoas.length){
+      const group=document.getElementById(containerId.replace('-chips','-group'));
+      if(group)group.style.display='none';
+      return;
+    }
+    el.innerHTML=pessoas.map(p=>`
+      <div class="person-chip${p.id===selectedId?' selected':''}" style="color:${p.color};border-color:${p.id===selectedId?p.color:'transparent'}"
+        data-pid="${p.id}" onclick="togglePessoaChip(this,'${containerId}')">
+        ${personAvatarHtml(p,18)} ${p.nome}
+      </div>`).join('');
+
+  }catch(e){
+    console.error('[renderPessoaChips]',e);
+    toast('Erro ao carregar pessoas','var(--red)');
   }
-  el.innerHTML=pessoas.map(p=>`
-    <div class="person-chip${p.id===selectedId?' selected':''}" style="color:${p.color};border-color:${p.id===selectedId?p.color:'transparent'}"
-      data-pid="${p.id}" onclick="togglePessoaChip(this,'${containerId}')">
-      ${personAvatarHtml(p,18)} ${p.nome}
-    </div>`).join('');
 }
 
 function togglePessoaChip(el,containerId){
@@ -131,14 +166,21 @@ function getSelectedPessoa(containerId){
 
 // Person filter bars
 async function renderPersonFilterBars(){
-  const pessoas=await pessoasAll();
-  ['dash','tx','budget'].forEach(page=>{
-    const el=document.getElementById('person-filter-bar-'+page);
-    if(!el)return;
-    if(!pessoas.length){el.innerHTML='';return;}
-    el.innerHTML='<button class="person-filter-btn active" data-pid="all" onclick="setPessoaFilter(null,this)">👥 Todos</button>'
-      +pessoas.map(p=>`<button class="person-filter-btn" data-pid="${p.id}" onclick="setPessoaFilter(${p.id},this)" style="color:${p.color}">${personAvatarHtml(p,16)} ${p.nome}</button>`).join('');
-  });
+
+  try{
+    const pessoas=await pessoasAll();
+    ['dash','tx','budget'].forEach(page=>{
+      const el=document.getElementById('person-filter-bar-'+page);
+      if(!el)return;
+      if(!pessoas.length){el.innerHTML='';return;}
+      el.innerHTML='<button class="person-filter-btn active" data-pid="all" onclick="setPessoaFilter(null,this)">👥 Todos</button>'
+        +pessoas.map(p=>`<button class="person-filter-btn" data-pid="${p.id}" onclick="setPessoaFilter(${p.id},this)" style="color:${p.color}">${personAvatarHtml(p,16)} ${p.nome}</button>`).join('');
+    });
+
+  }catch(e){
+    console.error('[renderPersonFilterBars]',e);
+    toast('Erro ao carregar filtros','var(--red)');
+  }
 }
 
 function setPessoaFilter(id,btn){

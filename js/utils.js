@@ -48,7 +48,6 @@ function showConfirm(title,msg,buttons){
   document.getElementById('confirm-overlay').classList.add('open');
 }
 
-let _numpadTarget=null, _numpadResolve=null;
 
 function openNumpad(initialVal){
   return new Promise(resolve=>{

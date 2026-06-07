@@ -1,12 +1,6 @@
-// Variáveis globais compartilhadas entre todos os módulos
-// Atribuídas ao window para compatibilidade com o código existente
-window.db = null;
-window.curMonth = new Date().getMonth();
-window.curYear = new Date().getFullYear();
-window.txFilter = 'all';
-window.pessoaFilter = null;
-window.projPeriods = 3;
-window.budgetMonth = new Date().getMonth();
-window.budgetYear = new Date().getFullYear();
-window.deferredInstall = null;
-window._numpadExpr = '';
+const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const ICONS={income:'💵',fixed:'🏠',variable:'🛒',credit:'💳'};
+const CAT_LABELS={income:'Receita',fixed:'Despesa Fixa',variable:'Despesa Variável',credit:'Cartão de Crédito'};
+let db, curMonth=new Date().getMonth(), curYear=new Date().getFullYear(), txFilter='all';
+let budgetMonth=new Date().getMonth(), budgetYear=new Date().getFullYear();
+let deferredInstall=null;

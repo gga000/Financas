@@ -1,0 +1,122 @@
+async function exportData(){
+  const all=await dbAll();
+  const buds=await budgetAll();
+  if(!all.length&&!buds.length){toast('Nenhum dado para exportar','var(--amber)');return}
+  const pessoas=await pessoasAll();
+  const cartoes=await cartoesAll();
+  const gastos=await gastosAll();
+  const budgetDoneAll=await new Promise(res=>{const t=db.transaction('budgetDone','readonly');t.objectStore('budgetDone').getAll().onsuccess=e=>res(e.target.result||[])});
+  const json=JSON.stringify({version:5,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,cartoes,gastos,budgetDone:budgetDoneAll},null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const d=new Date();
+  a.href=url;a.download=`financas_backup_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  a.click();URL.revokeObjectURL(url);
+  toast(`${all.length} lançamentos exportados!`,'var(--green)');
+}
+function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const obj=JSON.parse(ev.target.result);
+      const items=obj.data||obj;
+      if(!Array.isArray(items)){toast('Arquivo inválido','var(--red)');return}
+      const budgetItems=obj.budget||[];
+      const pessoaItems=obj.pessoas||[];
+      const total=items.length+(budgetItems.length||0)+(pessoaItems.length||0);
+      if(!confirm(`Importar ${total} registros? Os dados atuais serão mantidos.`))return;
+      let count=0;
+      const cartaoItems=obj.cartoes||[];
+      const gastoItems=obj.gastos||[];
+      // Import pessoas first, build oldId->newId map for remapping
+      const pessoaIdMap={};
+      for(const item of pessoaItems){
+        const{id:oldId,...rest}=item;
+        if(!rest.nome||!rest.color)continue;
+        const newId=await pessoasAdd(rest);
+        if(oldId&&newId)pessoaIdMap[oldId]=newId;
+        count++;
+      }
+      // Import tx items, remapping pessoaId
+      for(const item of items){
+        const{id,...rest}=item;
+        if(!rest.name||!rest.value||!rest.type)continue;
+        if(!rest.ym)rest.ym=ym(rest.year,rest.month);
+        if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
+        await dbAdd(rest);count++;
+      }
+      // Import budget items, remapping pessoaId, build budgetIdMap
+      const budgetIdMap={};
+      for(const item of budgetItems){
+        const{id:oldBudgetId,...rest}=item;
+        if(!rest.name||!rest.value||!rest.type)continue;
+        if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
+        const newBudgetId=await budgetAdd(rest);
+        if(oldBudgetId&&newBudgetId)budgetIdMap[oldBudgetId]=newBudgetId;
+        count++;
+      }
+      // Import budgetDone marks, remapping budgetId->newBudgetId and txId (skip, will be orphan)
+      const budgetDoneItems=obj.budgetDone||[];
+      for(const item of budgetDoneItems){
+        if(!item.key||!item.budgetId)continue;
+        // Only import if budgetId was remapped (budget item was imported)
+        const newBudgetId=budgetIdMap[item.budgetId];
+        if(!newBudgetId)continue;
+        // Rebuild key with new budgetId
+        const keyParts=item.key.split('_');
+        const yyyymm=keyParts.slice(1).join('_');
+        const newKey=newBudgetId+'_'+yyyymm;
+        await new Promise(res=>{
+          const t=db.transaction('budgetDone','readwrite');
+          t.objectStore('budgetDone').put({key:newKey,budgetId:newBudgetId,txId:null,doneAt:item.doneAt||Date.now()}).onsuccess=()=>res();
+        });
+        count++;
+      }
+      // Import cartoes, build cartaoIdMap
+      const cartaoIdMap={};
+      for(const item of cartaoItems){
+        const{id:oldId,...rest}=item;
+        if(!rest.name)continue;
+        if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
+        const newId=await cartoesAdd(rest);
+        if(oldId&&newId)cartaoIdMap[oldId]=newId;
+        count++;
+      }
+      // Import gastos, remapping cartaoId
+      for(const item of gastoItems){
+        const{id,...rest}=item;
+        if(!rest.name||!rest.value)continue;
+        if(rest.cartaoId&&cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
+        await gastosAdd(rest);count++;
+      }
+      toast(`${count} registros importados!`,'var(--green)');
+      renderAll();renderBudget();renderCards();renderPersonFilterBars();renderPessoasConfig();
+    }catch(e){console.error(e);toast('Erro ao ler arquivo','var(--red)')}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+async function clearAll(){
+  if(!confirm('Apagar TODOS os dados? (Lançamentos, orçamento e pessoas)\nEsta ação não pode ser desfeita.'))return;
+  await dbClear();
+  // clear budget, budgetDone
+  await new Promise(res=>{const t=db.transaction('budget','readwrite');t.objectStore('budget').clear().onsuccess=()=>res()});
+  await new Promise(res=>{const t=db.transaction('budgetDone','readwrite');t.objectStore('budgetDone').clear().onsuccess=()=>res()});
+  await new Promise(res=>{const t=db.transaction('pessoas','readwrite');t.objectStore('pessoas').clear().onsuccess=()=>res()});
+  await new Promise(res=>{const t=db.transaction('cartoes','readwrite');t.objectStore('cartoes').clear().onsuccess=()=>res()});
+  await new Promise(res=>{const t=db.transaction('gastos','readwrite');t.objectStore('gastos').clear().onsuccess=()=>res()});
+  pessoaFilter=null;
+  toast('Todos os dados apagados','var(--red)');
+  renderAll();
+  renderBudget();
+  renderCards();
+  renderPessoasConfig();
+  renderPersonFilterBars();
+}
+
+function renderCfg(){
+  const tog=document.getElementById('toggle-dark');
+  if(tog)tog.checked=!document.body.classList.contains('light');
+  renderPessoasConfig();
+}

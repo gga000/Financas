@@ -6,7 +6,8 @@ async function exportData(){
   const cartoes=await cartoesAll();
   const gastos=await gastosAll();
   const budgetDoneAll=await new Promise(res=>{const t=db.transaction('budgetDone','readonly');t.objectStore('budgetDone').getAll().onsuccess=e=>res(e.target.result||[])});
-  const json=JSON.stringify({version:5,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,cartoes,gastos,budgetDone:budgetDoneAll},null,2);
+  const recorrentes=await recorrentesAll();
+  const json=JSON.stringify({version:6,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,cartoes,gastos,recorrentes,budgetDone:budgetDoneAll},null,2);
   const blob=new Blob([json],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -57,21 +58,35 @@ function importData(e){
         if(oldBudgetId&&newBudgetId)budgetIdMap[oldBudgetId]=newBudgetId;
         count++;
       }
-      // Import budgetDone marks, remapping budgetId->newBudgetId and txId (skip, will be orphan)
+      // Import budgetDone marks
       const budgetDoneItems=obj.budgetDone||[];
       for(const item of budgetDoneItems){
         if(!item.key||!item.budgetId)continue;
-        // Only import if budgetId was remapped (budget item was imported)
-        const newBudgetId=budgetIdMap[item.budgetId];
-        if(!newBudgetId)continue;
-        // Rebuild key with new budgetId
-        const keyParts=item.key.split('_');
-        const yyyymm=keyParts.slice(1).join('_');
-        const newKey=newBudgetId+'_'+yyyymm;
-        await new Promise(res=>{
-          const t=db.transaction('budgetDone','readwrite');
-          t.objectStore('budgetDone').put({key:newKey,budgetId:newBudgetId,txId:null,doneAt:item.doneAt||Date.now()}).onsuccess=()=>res();
-        });
+        const isCartao=String(item.budgetId).startsWith('cartao_');
+        if(isCartao){
+          // key: cartao_3_202506 -> cartao_NEWID_202506
+          const parts=String(item.budgetId).split('_'); // ['cartao','3']
+          const oldCartaoId=parseInt(parts[1]);
+          const newCartaoId=cartaoIdMap[oldCartaoId];
+          if(!newCartaoId)continue;
+          const newBudgetId='cartao_'+newCartaoId;
+          const yyyymm=item.key.split('_').slice(2).join('_');
+          const newKey=newBudgetId+'_'+yyyymm;
+          await new Promise(res=>{
+            const t=db.transaction('budgetDone','readwrite');
+            t.objectStore('budgetDone').put({key:newKey,budgetId:newBudgetId,txId:null,doneAt:item.doneAt||Date.now()}).onsuccess=()=>res();
+          });
+        }else{
+          // budget item normal
+          const newBudgetId=budgetIdMap[item.budgetId];
+          if(!newBudgetId)continue;
+          const yyyymm=item.key.split('_').slice(1).join('_');
+          const newKey=newBudgetId+'_'+yyyymm;
+          await new Promise(res=>{
+            const t=db.transaction('budgetDone','readwrite');
+            t.objectStore('budgetDone').put({key:newKey,budgetId:newBudgetId,txId:null,doneAt:item.doneAt||Date.now()}).onsuccess=()=>res();
+          });
+        }
         count++;
       }
       // Import cartoes, build cartaoIdMap
@@ -91,6 +106,14 @@ function importData(e){
         if(rest.cartaoId&&cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
         await gastosAdd(rest);count++;
       }
+      // Import recorrentes, remapping cartaoId
+      const recorrenteItems=obj.recorrentes||[];
+      for(const item of recorrenteItems){
+        const{id,...rest}=item;
+        if(!rest.name||!rest.cartaoId)continue;
+        if(cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
+        await recorrentesAdd(rest);count++;
+      }
       toast(`${count} registros importados!`,'var(--green)');
       renderAll();renderBudget();renderCards();renderPersonFilterBars();renderPessoasConfig();
     }catch(e){console.error(e);toast('Erro ao ler arquivo','var(--red)')}
@@ -106,6 +129,7 @@ async function clearAll(){
   await new Promise(res=>{const t=db.transaction('pessoas','readwrite');t.objectStore('pessoas').clear().onsuccess=()=>res()});
   await new Promise(res=>{const t=db.transaction('cartoes','readwrite');t.objectStore('cartoes').clear().onsuccess=()=>res()});
   await new Promise(res=>{const t=db.transaction('gastos','readwrite');t.objectStore('gastos').clear().onsuccess=()=>res()});
+  await new Promise(res=>{const t=db.transaction('recorrentes','readwrite');t.objectStore('recorrentes').clear().onsuccess=()=>res()});
   pessoaFilter=null;
   toast('Todos os dados apagados','var(--red)');
   renderAll();

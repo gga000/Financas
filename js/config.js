@@ -58,7 +58,32 @@ function importData(e){
         if(oldBudgetId&&newBudgetId)budgetIdMap[oldBudgetId]=newBudgetId;
         count++;
       }
-      // Import budgetDone marks
+      // Import cartoes, build cartaoIdMap
+      const cartaoIdMap={};
+      for(const item of cartaoItems){
+        const{id:oldId,...rest}=item;
+        if(!rest.name)continue;
+        if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
+        const newId=await cartoesAdd(rest);
+        if(oldId&&newId)cartaoIdMap[oldId]=newId;
+        count++;
+      }
+      // Import gastos, remapping cartaoId
+      for(const item of gastoItems){
+        const{id,...rest}=item;
+        if(!rest.name||!rest.value)continue;
+        if(rest.cartaoId&&cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
+        await gastosAdd(rest);count++;
+      }
+      // Import recorrentes, remapping cartaoId
+      const recorrenteItems=obj.recorrentes||[];
+      for(const item of recorrenteItems){
+        const{id,...rest}=item;
+        if(!rest.name||!rest.cartaoId)continue;
+        if(cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
+        await recorrentesAdd(rest);count++;
+      }
+      // Import budgetDone por ultimo (precisa budgetIdMap e cartaoIdMap prontos)
       const budgetDoneItems=obj.budgetDone||[];
       for(const item of budgetDoneItems){
         if(!item.key||!item.budgetId)continue;
@@ -88,31 +113,6 @@ function importData(e){
           });
         }
         count++;
-      }
-      // Import cartoes, build cartaoIdMap
-      const cartaoIdMap={};
-      for(const item of cartaoItems){
-        const{id:oldId,...rest}=item;
-        if(!rest.name)continue;
-        if(rest.pessoaId&&pessoaIdMap[rest.pessoaId])rest.pessoaId=pessoaIdMap[rest.pessoaId];
-        const newId=await cartoesAdd(rest);
-        if(oldId&&newId)cartaoIdMap[oldId]=newId;
-        count++;
-      }
-      // Import gastos, remapping cartaoId
-      for(const item of gastoItems){
-        const{id,...rest}=item;
-        if(!rest.name||!rest.value)continue;
-        if(rest.cartaoId&&cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
-        await gastosAdd(rest);count++;
-      }
-      // Import recorrentes, remapping cartaoId
-      const recorrenteItems=obj.recorrentes||[];
-      for(const item of recorrenteItems){
-        const{id,...rest}=item;
-        if(!rest.name||!rest.cartaoId)continue;
-        if(cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
-        await recorrentesAdd(rest);count++;
       }
       toast(`${count} registros importados!`,'var(--green)');
       renderAll();renderBudget();renderCards();renderPersonFilterBars();renderPessoasConfig();

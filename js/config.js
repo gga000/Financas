@@ -16,7 +16,8 @@ async function exportData(){
     const d=new Date();
     a.href=url;a.download=`financas_backup_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
     a.click();URL.revokeObjectURL(url);
-    toast(`${all.length} lançamentos exportados!`,'var(--green)');
+    const totalExp=all.length+buds.length+pessoas.length+cartoes.length+gastos.length+recorrentes.length;
+    toast(`Backup exportado (${totalExp} registros)`,'var(--green)');
 
   }catch(e){
     console.error('[exportData]',e);
@@ -65,6 +66,13 @@ function importData(e){
         if(oldBudgetId&&newBudgetId)budgetIdMap[oldBudgetId]=newBudgetId;
         count++;
       }
+      // Segundo passe: remapear delayedFromId em budget items
+      const budsAfterImport=await budgetAll();
+      for(const item of budsAfterImport){
+        if(item.delayedFromId&&budgetIdMap[item.delayedFromId]){
+          await budgetPut({...item,delayedFromId:budgetIdMap[item.delayedFromId]});
+        }
+      }
       // Import cartoes, build cartaoIdMap
       const cartaoIdMap={};
       for(const item of cartaoItems){
@@ -81,6 +89,15 @@ function importData(e){
         if(!rest.name||!rest.value)continue;
         if(rest.cartaoId&&cartaoIdMap[rest.cartaoId])rest.cartaoId=cartaoIdMap[rest.cartaoId];
         await gastosAdd(rest);count++;
+      }
+      // Segundo passe: remapear fromCartao em tx items
+      if(Object.keys(cartaoIdMap).length){
+        const allTx=await dbAll();
+        for(const tx of allTx){
+          if(tx.fromCartao&&cartaoIdMap[tx.fromCartao]){
+            await dbPut({...tx,fromCartao:cartaoIdMap[tx.fromCartao]});
+          }
+        }
       }
       // Import recorrentes, remapping cartaoId
       const recorrenteItems=obj.recorrentes||[];

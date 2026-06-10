@@ -512,24 +512,67 @@ function txCard(t){
   </div>`;
 }
 
-function loadLastUpdate(){
-  const el=document.getElementById('last-update-label');
-  if(!el)return;
-  const ts=localStorage.getItem('lastUpdate');
-  if(!ts){el.textContent='🕐 Nunca atualizado';return;}
+function _fmtUpdateDate(ts){
   const d=new Date(parseInt(ts));
   const dia=String(d.getDate()).padStart(2,'0');
   const mes=String(d.getMonth()+1).padStart(2,'0');
   const ano=d.getFullYear();
   const h=String(d.getHours()).padStart(2,'0');
   const m=String(d.getMinutes()).padStart(2,'0');
-  el.textContent='🕐 Atualizado em '+dia+'/'+mes+'/'+ano+' às '+h+':'+m;
+  return dia+'/'+mes+'/'+ano+' às '+h+':'+m;
 }
-function markLastUpdate(){
-  localStorage.setItem('lastUpdate',Date.now().toString());
+function loadLastUpdate(){
+  const el=document.getElementById('last-update-label');
+  if(!el)return;
+  const history=JSON.parse(localStorage.getItem('lastUpdateHistory')||'[]');
+  const ts=history.length?history[history.length-1]:null;
+  if(!ts){el.textContent='🕐 Nunca atualizado';return;}
+  el.textContent='🕐 Atualizado em '+_fmtUpdateDate(ts);
+}
+function _doMarkLastUpdate(){
+  const history=JSON.parse(localStorage.getItem('lastUpdateHistory')||'[]');
+  history.push(Date.now());
+  if(history.length>20)history.splice(0,history.length-20);
+  localStorage.setItem('lastUpdateHistory',JSON.stringify(history));
+  localStorage.setItem('lastUpdate',String(history[history.length-1]));
   loadLastUpdate();
   toast('Marcado como atualizado!','var(--teal)');
 }
+function markLastUpdate(){
+  showConfirm('Marcar como atualizado?','Registra o momento atual no histórico de atualizações.',[
+    {label:'Confirmar',cls:'btn-primary',action:()=>_doMarkLastUpdate()},
+    {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+  ]);
+}
+
+function clearUpdateHistory(){
+  showConfirm('Limpar histórico?','Todo o histórico de atualizações será removido.',[
+    {label:'Limpar',cls:'btn-danger',action:()=>{
+      localStorage.removeItem('lastUpdateHistory');
+      localStorage.removeItem('lastUpdate');
+      loadLastUpdate();
+      closeModal();
+    }},
+    {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+  ]);
+}
+function showUpdateHistory(){
+  const history=JSON.parse(localStorage.getItem('lastUpdateHistory')||'[]');
+  if(!history.length){toast('Nenhum registro de atualização','var(--amber)');return;}
+  const rows=history.slice().reverse().map((ts,i)=>{
+    const label=i===0?'<span style="font-size:10px;color:var(--teal);margin-left:6px">mais recente</span>':'';
+    return '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'+_fmtUpdateDate(ts)+label+'</div>';
+  }).join('');
+  openModal(
+    '<div class="modal-title">🕐 Histórico de atualizações</div>'+
+    '<div style="max-height:320px;overflow-y:auto">'+rows+'</div>'+
+    '<div style="margin-top:12px;display:flex;gap:8px">'+
+    '<button class="btn btn-ghost" style="flex:1" onclick="clearUpdateHistory()">Limpar histórico</button>'+
+    '<button class="btn btn-primary" style="flex:1" onclick="closeModal()">Fechar</button>'+
+    '</div>'
+  );
+}
+
 async function renderDash(){
 
   try{

@@ -9,7 +9,8 @@ async function exportData(){
     const gastos=await gastosAll();
     const budgetDoneAll=await new Promise(res=>{const t=db.transaction('budgetDone','readonly');t.objectStore('budgetDone').getAll().onsuccess=e=>res(e.target.result||[])});
     const recorrentes=await recorrentesAll();
-    const json=JSON.stringify({version:6,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,cartoes,gastos,recorrentes,budgetDone:budgetDoneAll},null,2);
+    const lastUpdateHistory=JSON.parse(localStorage.getItem('lastUpdateHistory')||'[]');
+    const json=JSON.stringify({version:6,exportedAt:new Date().toISOString(),data:all,budget:buds,pessoas,cartoes,gastos,recorrentes,budgetDone:budgetDoneAll,lastUpdateHistory},null,2);
     const blob=new Blob([json],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
@@ -139,6 +140,16 @@ function importData(e){
         count++;
       }
       invalidateAllCache();
+      // restaurar historico de atualizacoes
+      if(obj.lastUpdateHistory&&obj.lastUpdateHistory.length){
+        const existing=JSON.parse(localStorage.getItem('lastUpdateHistory')||'[]');
+        const merged=[...existing,...obj.lastUpdateHistory].sort((a,b)=>a-b);
+        const deduped=merged.filter((v,i)=>i===0||v!==merged[i-1]);
+        if(deduped.length>20)deduped.splice(0,deduped.length-20);
+        localStorage.setItem('lastUpdateHistory',JSON.stringify(deduped));
+        localStorage.setItem('lastUpdate',String(deduped[deduped.length-1]));
+        if(typeof loadLastUpdate==='function')loadLastUpdate();
+      }
       toast(`${count} registros importados!`,'var(--green)');
       renderAll();renderBudget();renderCards();renderPersonFilterBars();renderPessoasConfig();
     }catch(e){console.error(e);toast('Erro ao ler arquivo','var(--red)')}

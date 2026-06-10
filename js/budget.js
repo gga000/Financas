@@ -585,6 +585,20 @@ async function saveBudgetEdit(id){
 
 
 async function toggleBudgetDone(budgetId){
+  // verificar se já está marcado (desmarcar não precisa confirmar)
+  const key=doneKey(budgetId,curYear,curMonth);
+  const existing=await doneGet(key);
+  if(existing){
+    // já marcado — desmarcar sem confirmar
+    return _toggleBudgetDoneInternal(budgetId);
+  }
+  // vai marcar — pedir confirmação
+  showConfirm('Marcar como realizado?','Será criado um lançamento financeiro referente a este item.',[
+    {label:'Confirmar',cls:'btn-primary',action:()=>_toggleBudgetDoneInternal(budgetId)},
+    {label:'Cancelar',cls:'btn-ghost',action:()=>{}}
+  ]);
+}
+async function _toggleBudgetDoneInternal(budgetId){
 
   try{
     // Handle cartao virtual items (string ids like 'cartao_3')

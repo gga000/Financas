@@ -121,6 +121,7 @@ function importData(e){
         }
         count++;
       }
+      invalidateAllCache();
       toast(`${count} registros importados!`,'var(--green)');
       renderAll();renderBudget();renderCards();renderPersonFilterBars();renderPessoasConfig();
     }catch(e){console.error(e);toast('Erro ao ler arquivo','var(--red)')}
@@ -131,6 +132,7 @@ async function clearAll(){
 
   try{
     if(!confirm('Apagar TODOS os dados? (Lançamentos, orçamento e pessoas)\nEsta ação não pode ser desfeita.'))return;
+    invalidateAllCache();
     await dbClear();
     // clear budget, budgetDone
     await new Promise(res=>{const t=db.transaction('budget','readwrite');t.objectStore('budget').clear().onsuccess=()=>res()});

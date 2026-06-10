@@ -38,6 +38,7 @@ function getBudgetRawExpr(){
   return expr||null;
 }
 function onBudgetValInput(){
+  clearFieldError('b-val');
   const inp=document.getElementById('b-val');
   if(inp&&inp.dataset)inp.dataset.rawExpr='';
   const raw=inp?.value||'';
@@ -72,7 +73,7 @@ async function openBudgetValNumpad(){
   const valInp=document.getElementById('b-val');
   const cur=valInp?.dataset?.rawExpr||valInp?.value||'';
   const result=await openNumpad(cur);
-  if(result!==null&&valInp){
+  if(result!==null&&valInp){clearFieldError('b-val');
     if(hasOp(result)){
       const r=evalExpr(result);
       if(!isNaN(r)){
@@ -107,15 +108,17 @@ function showBudgetAddModal(item=null){
     <div class="modal-title">${isEdit?'✏️ Editar item':'Novo item do orçamento'}</div>
     <div class="form-group">
       <label>Descrição</label>
-      <input id="b-name" placeholder="Ex: Aluguel, Cartão, Streaming..." value="${isEdit?item.name.replace(/"/g,'&quot;'):''}">
+      <input id="b-name" placeholder="Ex: Aluguel, Cartão, Streaming..." value="${isEdit?item.name.replace(/"/g,'&quot;'):''}" oninput="clearFieldError('b-name')">
+      <div class="field-error-msg" id="b-name-err"></div>
     </div>
     <div class="form-group">
       <label>Valor esperado</label>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div class="row-flex">
         <input id="b-val" type="text" inputmode="decimal" placeholder="0,00" value="${isEdit?(item.rawExpr||item.value):''}" style="flex:1" oninput="onBudgetValInput()">
+      <div class="field-error-msg" id="b-val-err"></div>
         <button type="button" onclick="openBudgetValNumpad()" class="btn-calc">📟</button>
       </div>
-      <div id="b-val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
+      <div id="b-val-preview" class="hint"></div>
     </div>
     <div class="form-group">
       <label>Tipo</label>
@@ -124,24 +127,24 @@ function showBudgetAddModal(item=null){
         <option value="fixed"${(!item||item?.type==='fixed')?' selected':''}>🏠 Despesa Fixa</option>
         <option value="variable"${item?.type==='variable'?' selected':''}>🛒 Variável</option>
       </select>
-      <div id="b-type-hint" class="hint" style="margin-top:4px"></div>
+      <div id="b-type-hint" class="hint"></div>
     </div>
     <div class="form-group">
-      <label>Vencimento <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <div style="display:grid;grid-template-columns:80px 1fr 1.5fr;gap:8px;align-items:end">
+      <label>Vencimento <span class="label-muted">(opcional)</span></label>
+      <div class="budget-due-grid">
         <div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Dia</div>
+          <div class="label-sm">Dia</div>
           <input id="b-day" type="text" inputmode="numeric" placeholder="Ex: 10" value="${isEdit&&item.dueDay?item.dueDay:''}" style="text-align:center" oninput="onBudgetDueOffsetChange()">
         </div>
         <div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Mês</div>
+          <div class="label-sm">Mês</div>
           <select id="b-due-offset" onchange="onBudgetDueOffsetChange()">
             <option value="0"${!isEdit||!item.dueMonthOffset?' selected':''}>${MONTHS[curMonth].slice(0,3)}/${String(curYear).slice(2)}</option>
             <option value="1"${isEdit&&item.dueMonthOffset===1?' selected':''}>${MONTHS[(curMonth+1)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+1)/12)).slice(2)}</option>
             <option value="2"${isEdit&&item.dueMonthOffset===2?' selected':''}>${MONTHS[(curMonth+2)%12].slice(0,3)}/${String(curYear+Math.floor((curMonth+2)/12)).slice(2)}</option>
           </select>
         </div>
-        <div id="b-due-preview" style="font-size:12px;color:var(--blue);padding-bottom:10px;white-space:nowrap"></div>
+        <div id="b-due-preview" class="hint-due"></div>
       </div>
     </div>
     <div id="b-recurrence-area" style="${(item?.type==='variable'||item?.type==='income')?'':'display:none'}">
@@ -168,24 +171,24 @@ function showBudgetAddModal(item=null){
       </div>
     </div>
     <div class="form-group">
-      <label>Responsável <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <div id="b-pessoa-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+      <label>Responsável <span class="label-muted">(opcional)</span></label>
+      <div id="b-pessoa-chips" class="row-flex-wrap"></div>
     </div>
     <div class="form-group">
-      <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <label>Observações <span class="label-muted">(opcional)</span></label>
       <textarea id="b-obs" placeholder="Detalhes...">${isEdit?item.obs||'':''}</textarea>
     </div>
     <div class="form-group" id="b-delayed-area">
-      <label>Atrasado / Pendente <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <label>Atrasado / Pendente <span class="label-muted">(opcional)</span></label>
+      <div class="row-flex">
         <label class="toggle" style="flex-shrink:0">
           <input type="checkbox" id="b-delayed-toggle" onchange="onBudgetDelayedToggle()" ${isEdit&&item.delayed?'checked':''}>
           <div class="toggle-track"></div><div class="toggle-thumb"></div>
         </label>
-        <span style="font-size:13px;color:var(--text2)">⚠️ Marcar como atrasado</span>
+        <span class="label-sm-green">⚠️ Marcar como atrasado</span>
       </div>
       ${isEdit?'<div id="b-delayed-config" style="'+(item.delayed?'display:block':'display:none')+';margin-top:10px">'+
-        '<div style="font-size:11px;color:var(--text3);margin-bottom:4px">Mover para o período</div>'+
+        '<div class="label-sm">Mover para o período</div>'+
         '<select id="b-delayed-to" style="width:100%">'+
         (()=>{let o='';for(let i=-6;i<=12;i++){const rawM=curMonth+i;const m=(rawM%12+12)%12;const y=curYear+Math.floor(rawM/12);
         let sel=false;
@@ -198,8 +201,8 @@ function showBudgetAddModal(item=null){
         '</div>':''}
     </div>
     <div class="form-group">
-      <label>Subitens <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <label>Subitens <span class="label-muted">(opcional)</span></label>
+      <div class="row-end">
         <button type="button" class="btn btn-ghost btn-sm" onclick="addSubitem()">+ Subitem</button>
       </div>
       <div id="modal-b-subitems-area"></div>
@@ -309,7 +312,8 @@ async function saveBudgetItem(){
     const bPessoaId=getSelectedPessoa('b-pessoa-chips');
     const bRawExpr=getBudgetRawExpr();
     const{recurrence,installmentCur,installmentTotal}=getBudgetRecurrence();
-    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
+    if(!name){setFieldError('b-name','Informe o nome');return}
+      if(!val||isNaN(val)||val<=0){setFieldError('b-val','Informe um valor válido');return}
     if(recurrence==='installments'&&installmentTotal>1){
       // Create N installment items starting from installmentCur
           const bGroupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
@@ -367,7 +371,8 @@ async function saveBudgetEdit(id){
     const bPessoaId=getSelectedPessoa('b-pessoa-chips');
     const bRawExpr=getBudgetRawExpr();
     const{recurrence,installmentCur,installmentTotal}=getBudgetRecurrence();
-    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return}
+    if(!name){setFieldError('b-name','Informe o nome');return}
+      if(!val||isNaN(val)||val<=0){setFieldError('b-val','Informe um valor válido');return}
     const all=await budgetAll();
     const existing=all.find(x=>x.id===id);
     if(!existing)return;
@@ -804,7 +809,7 @@ async function renderBudget(){
   const saldoColor=doneSaldo>=0?'var(--green)':'var(--red)';
   const totalSaldoColor=totalSaldo>=0?'var(--green)':'var(--red)';
   document.getElementById('budget-summary-text').innerHTML=
-    `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-size:12px">
+    `<div class="budget-summary-col">
       <span style="color:var(--text2)">${doneCount}/${items.length} realizados</span>
       <span style="color:var(--green)">💵 ${fmt(doneIncome)} <span style="color:var(--text3)">/ ${fmt(totalIncome)}</span></span>
       <span style="color:var(--red)">📤 ${fmt(doneExpense)} <span style="color:var(--text3)">/ ${fmt(totalExpense)}</span></span>
@@ -829,7 +834,7 @@ async function renderBudget(){
           <div class="budget-meta">
             <span style="white-space:nowrap">💳 Fatura cartão</span>
             ${item.dueDay?'<span style="color:var(--blue);font-size:10px">📅 '+String(item.dueDay).padStart(2,'0')+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
-            ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
+            ${done?'<span class="color-green-nowrap">✅ Realizado</span>':''}
             ${pessoa?'<span class="person-tag" style="white-space:nowrap">'+personAvatarHtml(pessoa,14)+' '+pessoa.nome+'</span>':''}
             ${item._gastos&&item._gastos.length?renderSubitemsHtml(item._gastos.map(g=>({name:g.name,value:g.value}))):''}
           </div>
@@ -847,14 +852,14 @@ async function renderBudget(){
       <div class="budget-info">
         <div class="budget-name">${item.name}</div>
         <div class="budget-meta">
-          <span style="white-space:nowrap;display:inline-flex;align-items:center;gap:5px">
+          <span class="budget-meta-row">
             ${CAT_LABELS[item.type]||''}
             ${item.delayed?'<span class="badge" style="background:var(--amber-bg);color:var(--amber)">⚠️ Atrasado</span>':''}
             ${!item.delayed&&(item.recurrence==='always'||item.type==='fixed'||item.type==='income')?'<span class="badge badge-blue">fixo</span>':''}
             ${item.installmentCur&&item.installmentTotal&&!item.subRepeatStart?'<span class="badge badge-amber">'+item.installmentCur+'/'+item.installmentTotal+'</span>':''}
             ${item.dueDay?'<span style="color:var(--blue);font-size:10px">📅 '+String(item.dueDay).padStart(2,'0')+(item.dueMonthOffset?'/'+MONTHS[(curMonth+item.dueMonthOffset)%12].slice(0,3):'')+'</span>':''}
           </span>
-          ${done?'<span style="color:var(--green);white-space:nowrap">✅ Realizado</span>':''}
+          ${done?'<span class="color-green-nowrap">✅ Realizado</span>':''}
           ${item._pessoa?`<span class="person-tag" style="white-space:nowrap">${personAvatarHtml(item._pessoa,14)} ${item._pessoa.nome}</span>`:''}
           ${item.obs?`<div class="tx-obs" style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${item.obs}</div>`:''}
         </div>

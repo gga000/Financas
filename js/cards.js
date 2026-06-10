@@ -66,29 +66,32 @@ function showAddCartaoModal(cartao=null){
     <div class="modal-title">${isEdit?'✏️ Editar cartão':'Novo cartão'}</div>
     <div class="form-group">
       <label>Nome do cartão</label>
-      <input id="cc-name" placeholder="Ex: Nubank, Itaú, Inter..." value="${isEdit?cartao.name.replace(/"/g,'&quot;'):''}">
+      <input id="cc-name" placeholder="Ex: Nubank, Itaú, Inter..." value="${isEdit?cartao.name.replace(/"/g,'&quot;'):''}" oninput="clearFieldError('cc-name')">
+      <div class="field-error-msg" id="cc-name-err"></div>
     </div>
     <div class="form-grid">
       <div class="form-group">
         <label>Dia fechamento</label>
-        <input id="cc-fech" type="text" inputmode="numeric" placeholder="Ex: 15" value="${isEdit?cartao.fechamento:''}">
+        <input id="cc-fech" type="text" inputmode="numeric" placeholder="Ex: 15" value="${isEdit?cartao.fechamento:''}" oninput="clearFieldError('cc-fech')">
+        <div class="field-error-msg" id="cc-fech-err"></div>
       </div>
       <div class="form-group">
         <label>Dia vencimento</label>
-        <input id="cc-venc" type="text" inputmode="numeric" placeholder="Ex: 22" value="${isEdit?cartao.vencimento:''}">
+        <input id="cc-venc" type="text" inputmode="numeric" placeholder="Ex: 22" value="${isEdit?cartao.vencimento:''}" oninput="clearFieldError('cc-venc')">
+        <div class="field-error-msg" id="cc-venc-err"></div>
       </div>
     </div>
     <div class="form-group">
-      <label>Limite <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <label>Limite <span class="label-muted">(opcional)</span></label>
       <input id="cc-limite" type="text" inputmode="decimal" placeholder="Ex: 5000" value="${isEdit&&cartao.limite?cartao.limite:''}">
     </div>
     <div class="form-group">
-      <label>Responsável <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <div id="cc-pessoa-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+      <label>Responsável <span class="label-muted">(opcional)</span></label>
+      <div id="cc-pessoa-chips" class="row-flex-wrap"></div>
     </div>
     <div class="form-group">
       <label>Cor</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+      <div class="row-flex-wrap">
         ${CARD_COLORS.map((c,i)=>'<div class="color-swatch'+(c===defColor?' selected':'')+'" style="background:'+c+';width:32px;height:20px;border-radius:4px" data-color="'+c+'" onclick="selectPessoaColor(this.dataset.color)"></div>').join('')}
       </div>
       <input type="hidden" id="p-color" value="${defColor}">
@@ -109,9 +112,9 @@ async function saveCartao(){
     const color=document.getElementById('p-color')?.value||CARD_COLORS[0];
     const pessoaId=getSelectedPessoa('cc-pessoa-chips');
     const limite=parseFloat(document.getElementById('cc-limite')?.value)||null;
-    if(!name||!fechamento||!vencimento||fechamento<1||fechamento>31||vencimento<1||vencimento>31){
-      toast('Preencha nome e dias válidos!','var(--red)');return;
-    }
+    if(!name){setFieldError('cc-name','Informe o nome');return;}
+  if(!fechamento||fechamento<1||fechamento>31){setFieldError('cc-fech','Dia inválido (1-31)');return;}
+  if(!vencimento||vencimento<1||vencimento>31){setFieldError('cc-venc','Dia inválido (1-31)');return;}
     await cartoesAdd({name,fechamento,vencimento,color,pessoaId,limite,createdAt:Date.now()});
     toast('Cartão adicionado!','var(--blue)');
     closeModal();renderCards();refreshBudgetCartoes();
@@ -131,7 +134,9 @@ async function saveCartaoEdit(id){
     const color=document.getElementById('p-color')?.value||CARD_COLORS[0];
     const pessoaId=getSelectedPessoa('cc-pessoa-chips');
     const limite=parseFloat(document.getElementById('cc-limite')?.value)||null;
-    if(!name||!fechamento||!vencimento){toast('Preencha todos os campos!','var(--red)');return;}
+    if(!name){setFieldError('cc-name','Informe o nome');return;}
+  if(!fechamento||fechamento<1||fechamento>31){setFieldError('cc-fech','Dia inválido (1-31)');return;}
+  if(!vencimento||vencimento<1||vencimento>31){setFieldError('cc-venc','Dia inválido (1-31)');return;}
     const all=await cartoesAll();
     const existing=all.find(c=>c.id===id);
     if(!existing)return;
@@ -170,37 +175,40 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
     <div class="modal-title">${isEdit?'✏️ Editar gasto':'Novo gasto — '+cartao.name}</div>
     <div class="form-group">
       <label>Descrição</label>
-      <input id="cg-name" placeholder="Ex: Supermercado, Restaurante..." value="${isEdit?gasto.name.replace(/"/g,'&quot;'):''}">
+      <input id="cg-name" placeholder="Ex: Supermercado, Restaurante..." value="${isEdit?gasto.name.replace(/"/g,'&quot;'):''}" oninput="clearFieldError('cg-name')">
+    <div class="field-error-msg" id="cg-name-err"></div>
     </div>
     <div class="form-group">
       <label>Valor</label>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div class="row-flex">
         <input id="cg-val" type="text" inputmode="decimal" placeholder="0,00" value="${isEdit?(gasto.rawExpr||gasto.value):''}" style="flex:1" oninput="onCgValInput()">
+      <div class="field-error-msg" id="cg-val-err"></div>
         <button type="button" onclick="openGastoNumpad()" class="btn-calc" title="Calculadora">📟</button>
       </div>
-      <div id="cg-val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
+      <div id="cg-val-preview" class="hint"></div>
     </div>
     <div class="form-group">
       <label>Data do gasto</label>
-      <div style="display:flex;gap:6px;align-items:center">
+      <div class="row-flex">
         <input id="cg-date" type="date" value="${isEdit?gasto.date:todayISO()}" style="flex:1" onchange="updateFaturaPreview()">
         <button type="button" onclick="clearDate('cg-date','cg-date-clear');updateFaturaPreview()" id="cg-date-clear" class="btn-clear-date" style="display:${isEdit&&gasto.date?'inline':'none'}" title="Limpar">✕</button>
       </div>
     </div>
-    <div id="cg-fatura-preview" style="font-size:12px;color:var(--blue);margin-top:-6px;margin-bottom:10px;min-height:16px"></div>
+    <div id="cg-fatura-preview" class="hint-blue"></div>
     <div class="form-group">
-      <label>Parcelas <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <label>Parcelas <span class="label-muted">(opcional)</span></label>
+      <div class="row-flex">
         <label class="toggle" style="flex-shrink:0">
           <input type="checkbox" id="cg-parcela-toggle" onchange="toggleGastoParcela(this.checked)" ${isEdit&&gasto.totalParcelas>1?'checked':''}>
           <div class="toggle-track"></div><div class="toggle-thumb"></div>
         </label>
-        <span style="font-size:13px;color:var(--text2)">Parcelar compra</span>
+        <span class="label-sm-green">Parcelar compra</span>
       </div>
       <div id="cg-parcela-area" style="${isEdit&&gasto.totalParcelas>1?'display:block':'display:none'};margin-top:10px">
         <div class="form-grid">
           <div class="form-group"><label>Parcela atual</label>
-            <input id="cg-pnum" type="text" inputmode="numeric" placeholder="1" value="${isEdit&&gasto.parcela?gasto.parcela:'1'}">
+            <input id="cg-pnum" type="text" inputmode="numeric" placeholder="1" value="${isEdit&&gasto.parcela?gasto.parcela:'1'}" oninput="clearFieldError('cg-pnum')">
+      <div class="field-error-msg" id="cg-pnum-err"></div>
           </div>
           <div class="form-group"><label>Total de parcelas</label>
             <input id="cg-ptotal" type="text" inputmode="numeric" placeholder="Ex: 12" value="${isEdit&&gasto.totalParcelas?gasto.totalParcelas:''}">
@@ -210,13 +218,13 @@ function showAddGastoModal(cartaoId, cartao, gasto=null){
       </div>
     </div>
     <div class="form-group">
-      <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <label>Observações <span class="label-muted">(opcional)</span></label>
       <textarea id="cg-obs" placeholder="Detalhes...">${isEdit?gasto.obs||'':''}</textarea>
     </div>
     <div class="form-group">
-      <label>Subitens <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <label>Subitens <span class="label-muted">(opcional)</span></label>
       <div id="cg-subitems-area"></div>
-      <button type="button" onclick="addGastoSubitem()" style="margin-top:6px;background:none;border:1px dashed var(--border);color:var(--text3);border-radius:var(--radius-sm);padding:6px 12px;font-size:13px;cursor:pointer;width:100%">+ subitem</button>
+      <button type="button" onclick="addGastoSubitem()" class="btn-subitem-add">+ subitem</button>
     </div>
     <input type="hidden" id="cg-cartao-id" value="${cartaoId}">
     <div class="btn-row" style="margin-top:4px">
@@ -281,7 +289,7 @@ async function openGastoNumpad(){
   const valInp=document.getElementById('cg-val');
   const cur=valInp?.dataset?.rawExpr||valInp?.value||'';
   const result=await openNumpad(cur);
-  if(result!==null&&valInp){
+  if(result!==null&&valInp){clearFieldError('cg-val');
     if(hasOp(result)){
       const r=evalExpr(result);
       if(!isNaN(r)){
@@ -300,6 +308,7 @@ async function openGastoNumpad(){
 }
 
 function onCgValInput(){
+  clearFieldError('cg-val');
   const inp=document.getElementById('cg-val');
   if(inp&&inp.dataset)inp.dataset.rawExpr='';
   const raw=inp?.value||'';
@@ -433,7 +442,8 @@ async function saveGasto(){
     const date=document.getElementById('cg-date')?.value||todayISO();
     const obs=document.getElementById('cg-obs')?.value.trim()||'';
     const cartaoId=parseInt(document.getElementById('cg-cartao-id')?.value);
-    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
+    if(!name){setFieldError('cg-name','Informe o nome');return}
+  if(!val||isNaN(val)||val<=0){setFieldError('cg-val','Informe um valor válido');return;}
     const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
     const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
     const pnum=parseInt(document.getElementById('cg-pnum')?.value)||1;
@@ -441,7 +451,7 @@ async function saveGasto(){
     const allCartoes=await cartoesAll();
     const cartaoObj=allCartoes.find(c=>c.id===cartaoId)||{fechamento:1,vencimento:1};
     if(parcelado&&ptotal>1){
-      if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return;}
+      if(pnum>ptotal){setFieldError('cg-pnum','Parcela atual maior que o total');return;}
       let d=date;
       const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
       for(let i=pnum-1;i<ptotal;i++){
@@ -478,7 +488,8 @@ async function saveGastoEdit(id){
     const val=getGastoVal();
     const date=document.getElementById('cg-date')?.value||todayISO();
     const obs=document.getElementById('cg-obs')?.value.trim()||'';
-    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor!','var(--red)');return;}
+    if(!name){setFieldError('cg-name','Informe o nome');return}
+  if(!val||isNaN(val)||val<=0){setFieldError('cg-val','Informe um valor válido');return;}
     const cgRawExpr=(()=>{const inp=document.getElementById('cg-val');return inp?.dataset?.rawExpr||(hasOp(inp?.value||'')?inp.value:null);})();
     const parcelado=document.getElementById('cg-parcela-toggle')?.checked;
     const pnum=parseInt(document.getElementById('cg-pnum')?.value)||1;
@@ -651,16 +662,18 @@ function showAddRecorrenteModal(cartaoId, recorrente){
     <div class="modal-title">${isEdit?'Editar':'Nova'} Recorrência</div>
     <div class="form-group">
       <label>Nome</label>
-      <input id="cr-name" placeholder="Ex: Assinaturas" value="${r.name||''}">
+      <input id="cr-name" placeholder="Ex: Assinaturas" value="${r.name||''}" oninput="clearFieldError('cr-name')">
+      <div class="field-error-msg" id="cr-name-err"></div>
     </div>
     <div class="form-group">
-      <label>Valor <span style="font-weight:400;color:var(--text3)">(calculado pelos subitens se preenchidos)</span></label>
-      <input id="cr-val" type="number" step="0.01" placeholder="0,00" value="${r.value||''}">
+      <label>Valor <span class="label-muted">(calculado pelos subitens se preenchidos)</span></label>
+      <input id="cr-val" type="number" step="0.01" placeholder="0,00" value="${r.value||''}" oninput="clearFieldError('cr-val')">
+      <div class="field-error-msg" id="cr-val-err"></div>
     </div>
     <div class="form-group">
       <label>Subitens</label>
       <div id="cr-subitems-area"></div>
-      <button type="button" onclick="addCrSubitem()" style="margin-top:6px;background:none;border:1px dashed var(--border);color:var(--text3);border-radius:var(--radius-sm);padding:6px 12px;font-size:13px;cursor:pointer;width:100%">+ subitem</button>
+      <button type="button" onclick="addCrSubitem()" class="btn-subitem-add">+ subitem</button>
     </div>
     <div class="form-group">
       <label>Observação</label>
@@ -715,7 +728,8 @@ async function saveRecorrente(){
     const subitems=getCrSubitems();
     const value=subitems.length?subitems.reduce((t,s)=>t+s.value,0):parseFloat(document.getElementById('cr-val')?.value)||0;
     const obs=document.getElementById('cr-obs')?.value.trim()||'';
-    if(!name||value<=0){toast('Preencha nome e valor!','var(--red)');return;}
+    if(!name){setFieldError('cr-name','Informe o nome');return;}
+  if(value<=0){setFieldError('cr-val','Informe um valor válido');return;}
     await recorrentesAdd({cartaoId,name,value,subitems,obs,createdAt:Date.now()});
     toast('Recorrência adicionada!','var(--teal)');
     closeModal();renderCards();
@@ -728,11 +742,14 @@ async function saveRecorrente(){
 async function saveRecorrenteEdit(id){
 
   try{
+    if(!name){setFieldError('cr-name','Informe o nome');return;}
+    if(value<=0){setFieldError('cr-val','Informe um valor válido');return;}
     const name=document.getElementById('cr-name')?.value.trim();
     const subitems=getCrSubitems();
     const value=subitems.length?subitems.reduce((t,s)=>t+s.value,0):parseFloat(document.getElementById('cr-val')?.value)||0;
     const obs=document.getElementById('cr-obs')?.value.trim()||'';
-    if(!name||value<=0){toast('Preencha nome e valor!','var(--red)');return;}
+    if(!name){setFieldError('cr-name','Informe o nome');return;}
+  if(value<=0){setFieldError('cr-val','Informe um valor válido');return;}
     const all=await recorrentesAll();
     const existing=all.find(r=>r.id===id);
     if(!existing)return;
@@ -881,62 +898,62 @@ async function renderCards(){
         </div>
         <div class="card-total${totalComRec===0?' zero':''}">${totalComRec===0?'R$ 0,00':'-'+fmt(totalComRec)}</div>
         ${cartao.limite?'<div style="margin-top:6px">'+
-          '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text3);margin-bottom:4px">'+
+          '<div class="row-between-sm">'+
           '<span>Usado: '+fmt(limiteUsado)+' / '+fmt(cartao.limite)+'</span>'+
           '<span style="color:'+limiteColor+';font-weight:600">Disponível: '+(cartao.limite-limiteUsado<0?'-':'')+fmt(Math.abs(cartao.limite-limiteUsado))+'</span>'+
           '</div>'+
-          '<div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">'+
+          '<div class="limite-bar-track">'+
           '<div style="height:100%;border-radius:3px;background:'+limiteColor+';transition:width .4s;width:'+limitePct+'%"></div>'+
           '</div>'+
           (limitePct>=90?'<div style="font-size:11px;color:var(--red);margin-top:3px">⚠️ Próximo do limite</div>':'')+
           '</div>':''}
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:8px">
-          <div style="display:flex;gap:6px;align-items:center">
+        <div class="row-between-mt">
+          <div class="row-flex">
             <span style="font-size:12px;color:var(--text3)">${gastosFatura.length} gasto(s)</span>
             ${recDoCartao2.length===0?'<button class="btn btn-ghost btn-sm" onclick="showAddRecorrenteModal('+cartao.id+')">+ Recorrência</button>':''}
           </div>
           <button class="btn btn-primary btn-sm" onclick="showAddGastoModal(${cartao.id},${JSON.stringify(cartao).replace(/"/g,'&quot;')})">+ Gasto</button>
         </div>
         ${recDoCartao2.length?'<div style="margin-top:12px;margin-bottom:6px">'+
-          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+          '<div class="row-between-mb">'+
           '<span style="font-size:12px;font-weight:600;color:var(--text2)">🔄 Recorrências</span>'+
           '<button class="btn btn-ghost btn-sm" onclick="showAddRecorrenteModal('+cartao.id+')">+ Nova</button>'+
           '</div>'+
           recDoCartao2.map(r=>{
             const subHtmlR=r.subitems&&r.subitems.length?renderSubitemsHtml(r.subitems):'';
             return '<div class="card-gasto-item card-gasto-col" style="border-left:3px solid var(--teal)">'+
-              '<div style="display:flex;align-items:center;gap:10px">'+
+              '<div class="row-flex">'+
               '<div class="card-gasto-info">'+
               '<div class="card-gasto-name">'+r.name+'</div>'+
               (r.obs?'<div class="card-gasto-meta"><span>💬 '+r.obs+'</span></div>':'')+
               '</div>'+
-              '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
+              '<div class="row-gasto-actions">'+
               '<div class="card-gasto-val">-'+fmt(r.value)+'</div>'+
               '<button class="tx-btn edit" onclick="editRecorrente('+r.id+')">✏️</button>'+
               '<button class="tx-btn del" onclick="deleteRecorrente('+r.id+')">✕</button>'+
               '</div></div>'+
-              (subHtmlR?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+subHtmlR+'</div>':'')+
+              (subHtmlR?'<div class="subitem-sep">'+subHtmlR+'</div>':'')+
               '</div>';
           }).join('')+
-          '</div>':''}\r\n      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:4px">
+          '</div>':''}\r\n      <div class="row-between-mt4">
           <span style="font-size:12px;color:var(--text3)">🛒 Gastos da fatura (${gastosFatura.length})</span>
         </div>
         ${gastosFatura.length?gastosFatura.sort((a,b)=>(b.date||'')>(a.date||'')?-1:1).map(g=>{
           const subHtml=g._activeSubs&&g._activeSubs.length?renderSubitemsHtml(g._activeSubs):'';
           return '<div class="card-gasto-item card-gasto-col">'+
-            '<div style="display:flex;align-items:center;gap:10px">'+
+            '<div class="row-flex">'+
             '<div class="card-gasto-info">'+
             '<div class="card-gasto-name">'+g.name+'</div>'+
             '<div class="card-gasto-meta">'+
             (g.date?'<span>📅 '+fmtDate(g.date)+'</span>':'')+
             (g.obs?'<span>💬 '+g.obs+'</span>':'')+
             '</div></div>'+
-            '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
+            '<div class="row-gasto-actions">'+
             '<div class="card-gasto-val">-'+fmt(g.value)+'</div>'+
             '<button class="tx-btn edit" onclick="editGasto('+cartao.id+','+g.id+')">✏️</button>'+
             '<button class="tx-btn del" onclick="deleteGasto('+g.id+')">✕</button>'+
             '</div></div>'+
-            (subHtml?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+subHtml+'</div>':'')+
+            (subHtml?'<div class="subitem-sep">'+subHtml+'</div>':'')+
             '</div>';
         }).join(''):''}
       </div>`;

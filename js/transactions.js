@@ -10,15 +10,17 @@ function entryFormHtml(t=null){
     <div class="modal-title">${isEdit?'✏️ Editar lançamento':'Novo lançamento'}</div>
     <div class="form-group">
       <label>Descrição</label>
-      <input id="f-name" placeholder="Ex: Aluguel, Salário, Netflix..." value="${isEdit?t.name.replace(/"/g,'&quot;'):''}">
+      <input id="f-name" placeholder="Ex: Aluguel, Salário, Netflix..." oninput="clearFieldError('f-name')" value="${isEdit?t.name.replace(/"/g,'&quot;'):''}">
+      <div class="field-error-msg" id="f-name-err"></div>
     </div>
     <div class="form-group">
       <label>Valor</label>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div class="row-flex">
         <input id="f-val" type="text" inputmode="decimal" placeholder="0,00" value="${defVal}" style="flex:1" oninput="onValInput()">
+      <div class="field-error-msg" id="f-val-err"></div>
         <button type="button" onclick="openValNumpad()" class="btn-calc" title="Calculadora">📟</button>
       </div>
-      <div id="val-preview" style="font-size:12px;min-height:16px;margin-top:4px;font-family:var(--mono)"></div>
+      <div id="val-preview" class="hint"></div>
     </div>
     <div class="form-grid">
       <div class="form-group">
@@ -31,8 +33,8 @@ function entryFormHtml(t=null){
         </select>
       </div>
       <div class="form-group">
-        <label>Vencimento <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-        <div style="display:flex;gap:6px;align-items:center">
+        <label>Vencimento <span class="label-muted">(opcional)</span></label>
+        <div class="row-flex">
           <input id="f-date" type="date" value="${t?.date||''}" style="flex:1" onchange="toggleDateClear('f-date-clear',this.value)">
           <button type="button" id="f-date-clear" onclick="clearDate('f-date','f-date-clear')" class="btn-clear-date" style="display:${(t?.date)?'inline':'none'}" title="Limpar">✕</button>
         </div>
@@ -40,8 +42,8 @@ function entryFormHtml(t=null){
     </div>
     <div class="form-grid" style="margin-top:-4px">
       <div class="form-group">
-        <label>Pago em <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-        <div style="display:flex;gap:6px;align-items:center">
+        <label>Pago em <span class="label-muted">(opcional)</span></label>
+        <div class="row-flex">
           <input id="f-paid" type="date" value="${t?.paidDate||''}" style="flex:1" onchange="toggleDateClear('f-paid-clear',this.value)">
           <button type="button" id="f-paid-clear" onclick="clearDate('f-paid','f-paid-clear')" class="btn-clear-date" style="display:${(t?.paidDate)?'inline':'none'}" title="Limpar">✕</button>
         </div>
@@ -57,7 +59,7 @@ function entryFormHtml(t=null){
     </div>
 
     <div class="form-group">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="row-between-mb">
         <label style="margin:0">Subitens</label>
         <button type="button" class="btn btn-ghost btn-sm" onclick="addSubitem()">+ Subitem</button>
       </div>
@@ -66,11 +68,11 @@ function entryFormHtml(t=null){
     </div>
 
     <div class="form-group" id="f-pessoa-group">
-      <label>Responsável <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
-      <div id="f-pessoa-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+      <label>Responsável <span class="label-muted">(opcional)</span></label>
+      <div id="f-pessoa-chips" class="row-flex-wrap"></div>
     </div>
     <div class="form-group">
-      <label>Observações <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+      <label>Observações <span class="label-muted">(opcional)</span></label>
       <textarea id="f-obs" placeholder="Detalhes, itens agrupados...">${defObs}</textarea>
     </div>
     <div id="area-recur" style="${(defType==='credit'||(isEdit&&(t?.fromBudget||t?.fromCartao)))?'display:none':''}">
@@ -89,7 +91,8 @@ function entryFormHtml(t=null){
     </div>
     <div id="area-parcela" style="display:none">
       <div class="form-grid">
-        <div class="form-group"><label>Parcela atual</label><input id="f-pnum" type="number" value="1" min="1" inputmode="numeric"></div>
+        <div class="form-group"><label>Parcela atual</label><input id="f-pnum" type="number" value="1" min="1" inputmode="numeric" oninput="clearFieldError('f-pnum')">
+      <div class="field-error-msg" id="f-pnum-err"></div></div>
         <div class="form-group"><label>Total de parcelas</label><input id="f-ptotal" type="number" value="1" min="1" inputmode="numeric"></div>
       </div>
     </div>
@@ -100,6 +103,7 @@ function entryFormHtml(t=null){
 }
 
 function onValInput(){
+  clearFieldError('f-val');
   const inp=document.getElementById('f-val');
   const raw=inp?.value||'';
   if(inp&&inp.dataset)inp.dataset.rawExpr='';
@@ -125,7 +129,7 @@ async function openValNumpad(){
   const valInp=document.getElementById('f-val');
   const cur=valInp?.dataset.rawExpr||valInp?.value||'';
   const result=await openNumpad(cur);
-  if(result!==null&&valInp){
+  if(result!==null&&valInp){clearFieldError('f-val');
     if(hasOp(result)){
       const r=evalExpr(result);
       if(!isNaN(r)){
@@ -345,12 +349,13 @@ async function saveEntry(){
 
   try{
     const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId}=getFormValues();
-    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
+    if(!name){setFieldError('f-name','Informe o nome');return}
+      if(!val||isNaN(val)||val<=0){setFieldError('f-val','Informe um valor válido');return}
     const groupId=Date.now()+'_'+Math.random().toString(36).slice(2,7);
     if(type==='credit'){
       const pnum=parseInt(document.getElementById('f-pnum').value)||1;
       const ptotal=parseInt(document.getElementById('f-ptotal').value)||1;
-      if(pnum>ptotal){toast('Parcela atual > total!','var(--red)');return}
+      if(pnum>ptotal){setFieldError('f-pnum','Parcela atual maior que o total');return}
       let m=month,y=year,d=date;
       for(let i=pnum-1;i<ptotal;i++){
         await dbAdd({name:`${name} ${i+1}/${ptotal}`,value:val,rawExpr,type,month:m,year:y,ym:ym(y,m),date:d,paidDate,obs,subitems,pessoaId,groupId,createdAt:Date.now()});
@@ -392,7 +397,8 @@ async function updateEntry(id){
 
   try{
     const{name,val,rawExpr,type,date,paidDate,month,year,obs,subitems,pessoaId}=getFormValues();
-    if(!name||!val||isNaN(val)||val<=0){toast('Preencha nome e valor válido!','var(--red)');return}
+    if(!name){setFieldError('f-name','Informe o nome');return}
+      if(!val||isNaN(val)||val<=0){setFieldError('f-val','Informe um valor válido');return}
     const all=await dbAll();
     const existing=all.find(x=>x.id===id);
     if(!existing)return;
@@ -552,7 +558,7 @@ async function renderDash(){
       <div class="stat-card"><div class="stat-icon">💳</div><div class="stat-label">Cartão</div><div class="stat-value amber">${fmt(credit)}</div></div>
     `;
     document.getElementById('prog-area').innerHTML=`
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:2px;flex-wrap:wrap;gap:4px">
+      <div class="row-meta-wrap">
         <span>🏠 ${fmt(fixed)}</span><span>🛒 ${fmt(variable)}</span><span>💳 ${fmt(credit)}</span>
       </div>
       <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>

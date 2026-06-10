@@ -46,7 +46,8 @@ function showAddPessoaModal(pessoa=null){
     <div class="modal-title">${isEdit?'Editar pessoa':'Nova pessoa'}</div>
     <div class="form-group">
       <label>Nome</label>
-      <input id="p-nome" placeholder="Ex: Diego, Camila..." value="${isEdit?pessoa.nome:''}">
+      <input id="p-nome" placeholder="Ex: Diego, Camila..." value="${isEdit?pessoa.nome:''}" oninput="clearFieldError('p-nome')">
+    <div class="field-error-msg" id="p-nome-err"></div>
     </div>
     <div class="form-group">
       <label>Cor</label>
@@ -78,7 +79,7 @@ async function savePessoa(){
   try{
     const nome=document.getElementById('p-nome')?.value.trim();
     const color=document.getElementById('p-color')?.value||PERSON_COLORS[0];
-    if(!nome){toast('Informe o nome!','var(--red)');return;}
+    if(!nome){setFieldError('p-nome','Informe o nome');return;}
     await pessoasAdd({nome,color,createdAt:Date.now()});
     toast('Pessoa adicionada!','var(--teal)');
     closeModal();renderPessoasConfig();renderPersonFilterBars();
@@ -94,7 +95,7 @@ async function savePessoaEdit(id){
   try{
     const nome=document.getElementById('p-nome')?.value.trim();
     const color=document.getElementById('p-color')?.value||PERSON_COLORS[0];
-    if(!nome){toast('Informe o nome!','var(--red)');return;}
+    if(!nome){setFieldError('p-nome','Informe o nome');return;}
     const all=await pessoasAll();
     const existing=all.find(x=>x.id===id);
     if(!existing)return;

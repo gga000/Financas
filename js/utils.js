@@ -128,3 +128,19 @@ function toggleSubitems(el){
     el.textContent=novoTexto;
   }
 }
+function setFieldError(id, msg){
+  const el=document.getElementById(id);
+  if(el){el.classList.add('field-invalid');}
+  const err=document.getElementById(id+'-err');
+  if(err){err.textContent=msg;err.classList.add('visible');}
+}
+function clearFieldError(id){
+  const el=document.getElementById(id);
+  if(el){el.classList.remove('field-invalid');}
+  const err=document.getElementById(id+'-err');
+  if(err){err.textContent='';err.classList.remove('visible');}
+}
+function clearAllFieldErrors(){
+  document.querySelectorAll('.field-invalid').forEach(el=>el.classList.remove('field-invalid'));
+  document.querySelectorAll('.field-error-msg.visible').forEach(el=>{el.textContent='';el.classList.remove('visible');});
+}
